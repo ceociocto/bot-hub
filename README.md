@@ -1,28 +1,25 @@
 # bot-hub
 
-**Universal messenger-to-agent bridge** — connect WeChat/Feishu/Telegram to Claude Code/Codex/Copilot.
+**Universal messenger-to-agent bridge** — connect WeChat/Feishu/Telegram to Claude Code/Codex/Copilot/OpenCode.
 
 ```
 npm install -g bot-hub
 bot-hub config wechat   # Scan QR to login
-bot-hub start          # Start the bridge
+bot-hub start           # Start the bridge
 ```
 
 ## Features
 
-- 🔌 **Universal multiplexer** — one instance, multiple messengers, multiple agents
-- 🔌 **Plugin architecture** — easy to add new messengers/agents
-- 🚀 **TypeScript native** — no Go/Docker required
-- 📦 **JSONL streaming** — real-time agent responses
+- **Universal multiplexer** — one instance, multiple messengers, multiple agents
+- **Plugin architecture** — easy to add new messengers/agents
+- **TypeScript native** — no Go/Docker required
+- **JSONL streaming** — real-time agent responses
 
 ## Installation
 
 ```bash
 # Install globally
 npm install -g bot-hub
-
-# Or with bun
-bun install -g bot-hub
 ```
 
 ## Quick Start
@@ -57,11 +54,13 @@ Send these as messages to the bot:
 
 ```
 hello                  # Send to default agent
-/status               # Show connection status
-/help                 # Show available commands
-/agents               # List available agents
-/cc explain this code # Switch to Claude Code
-/cx explain this code # Switch to Codex
+/status                # Show connection status
+/help                  # Show available commands
+/agents                # List available agents
+/cc explain this code  # Switch to Claude Code
+/cx explain this code  # Switch to Codex
+/co explain this code  # Switch to Copilot
+/oc explain this code  # Switch to OpenCode
 ```
 
 ## Architecture
@@ -80,7 +79,8 @@ hello                  # Send to default agent
 │ Messenger Plugins│      │  Agent Plugins  │
 │ • wechat         │      │ • claude-code    │
 │ • feishu (v2)    │      │ • codex          │
-│ • telegram (v2)  │      │ • copilot (v2)   │
+│ • telegram (v2)  │      │ • copilot        │
+│                  │      │ • opencode       │
 └─────────────────┘      └─────────────────┘
 ```
 
@@ -98,13 +98,12 @@ bot-hub/
 │   │   ├── messengers/
 │   │   │   └── wechat/           # WeChat adapter
 │   │   └── agents/
-│   │       └── claude-code/      # Claude Code adapter
+│   │       ├── claude-code/      # Claude Code adapter
+│   │       ├── codex/            # OpenAI Codex adapter
+│   │       ├── copilot/          # GitHub Copilot adapter
+│   │       └── opencode/         # OpenCode adapter
 │   ├── index.ts                  # Main entry
 │   └── cli.ts                    # CLI commands
-├── test/
-│   ├── unit/
-│   ├── integration/
-│   └── mocks/
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -124,39 +123,42 @@ Config file: `~/.bot-hub/config.json`
 
 ## Requirements
 
-- **Node.js 18+** or **Bun**
+- **Node.js 18+**
 - **Claude Code CLI** — `npm install -g @anthropic-ai/claude-code`
 
 ## Development
 
 ```bash
 # Clone
-git clone https://github.com/your-org/bot-hub
+git clone https://github.com/ceociocto/bot-hub
 cd bot-hub
 
 # Install deps
-bun install
-
-# Run in dev mode
-bun run dev
-
-# Run tests
-bun test
+npm install
 
 # Build
-bun run build
+npm run build
+
+# Run in dev mode (watch)
+npm run dev
+
+# Run
+npm start
 ```
 
 ## Roadmap
 
-### v0.1.0 (MVP)
+### v0.1.x (MVP)
 - [x] WeChat adapter with QR login
 - [x] Claude Code agent integration
+- [x] Codex agent
+- [x] Copilot agent
+- [x] OpenCode agent
 - [x] Basic command routing
 
 ### v0.2.0
-- [x] Codex agent
 - [ ] Feishu adapter
+- [ ] Telegram adapter
 - [ ] Session persistence
 
 ## License
