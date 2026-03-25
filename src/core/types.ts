@@ -54,6 +54,12 @@ export interface MessengerAdapter {
   stop(): Promise<void>
   onMessage(handler: (ctx: MessageContext) => Promise<void>): void
   sendMessage(threadId: string, text: string): Promise<void>
+  /**
+   * Send typing indicator to show the bot is processing
+   * @param threadId - The conversation thread ID
+   * @param isTyping - true to start typing indicator, false to stop
+   */
+  sendTyping?(threadId: string, isTyping: boolean): Promise<void>
 }
 
 /**

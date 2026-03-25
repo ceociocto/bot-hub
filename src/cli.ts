@@ -121,7 +121,25 @@ async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise
     return
   }
 
+  // Start typing indicator if supported
+  const stopTyping = async () => {
+    if (messenger.sendTyping) {
+      try {
+        await messenger.sendTyping(message.threadId, false)
+      } catch {
+        // Ignore typing errors
+      }
+    }
+  }
+
   try {
+    // Send typing indicator
+    if (messenger.sendTyping) {
+      messenger.sendTyping(message.threadId, true).catch(() => {
+        // Ignore typing errors
+      })
+    }
+
     // Parse the message
     const parsed = parseMessage(message.text)
     console.log(`[handleMessage] Parsed:`, parsed)
@@ -137,6 +155,7 @@ async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise
     // Handle response (string or async generator)
     if (typeof result === 'string') {
       console.log(`[handleMessage] Sending string response:`, result.substring(0, 100))
+      await stopTyping()
       await messenger.sendMessage(message.threadId, result)
     } else {
       // Stream response chunks
@@ -147,6 +166,8 @@ async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise
         console.log(`[handleMessage] Chunk received, length:`, chunk.length)
       }
 
+      await stopTyping()
+
       if (fullResponse) {
         console.log(`[handleMessage] Full response length:`, fullResponse.length)
         await messenger.sendMessage(message.threadId, fullResponse)
@@ -156,6 +177,7 @@ async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise
     }
   } catch (error) {
     console.error('Error handling message:', error)
+    await stopTyping()
     await messenger.sendMessage(
       message.threadId,
       '❌ An error occurred processing your message. Please try again.'
