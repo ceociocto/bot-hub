@@ -24,6 +24,7 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
     lastPollTime: 0,
   }
   private contextTokens = new Map<string, ContextTokenCache>()
+  private typingTickets = new Map<string, string>()
 
   constructor() {
     this.client = new ILinkClient()
@@ -90,6 +91,42 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
         }
         throw new Error(`Failed to send message: ${response.errmsg || response.ret}`)
       }
+    }
+  }
+
+  // ============================================
+  // Typing Indicator
+  // ============================================
+
+  async sendTyping(threadId: string, isTyping: boolean): Promise<void> {
+    if (!this.client.hasCredentials()) {
+      return
+    }
+
+    // Extract user ID from threadId (format: user:xxx or room:xxx)
+    const userId = threadId.replace(/^(user|room):/, '')
+
+    // Get or fetch typing ticket
+    let typingTicket: string | undefined = this.typingTickets.get(userId)
+    if (!typingTicket) {
+      const contextToken = this.getContextToken(userId)
+      const ticket = await this.client.getTypingTicket(userId, contextToken ?? undefined)
+      if (!ticket) {
+        console.log('[WeChat] Could not get typing ticket for user:', userId)
+        return
+      }
+      typingTicket = ticket
+      this.typingTickets.set(userId, ticket)
+    }
+
+    // Send typing status (1 = start, 2 = stop)
+    const status = isTyping ? 1 : 2
+    const success = await this.client.sendTyping(userId, typingTicket, status)
+
+    if (!success) {
+      // Ticket might be expired, clear it for next attempt
+      this.typingTickets.delete(userId)
+      console.log('[WeChat] Failed to send typing indicator, cleared ticket')
     }
   }
 
