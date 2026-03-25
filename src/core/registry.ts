@@ -77,6 +77,9 @@ class PluginRegistry {
     const { copilotAdapter } = await import('../plugins/agents/copilot/index.js')
     this.registerAgent(copilotAdapter)
 
+    const { opencodeAdapter } = await import('../plugins/agents/opencode/index.js')
+    this.registerAgent(opencodeAdapter)
+
     console.log(`Plugin registry initialized: ${this.messengers.size} messengers, ${this.agents.size} agents`)
   }
 }
