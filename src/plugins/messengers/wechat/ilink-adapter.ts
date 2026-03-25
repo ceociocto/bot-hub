@@ -175,22 +175,35 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
   }
 
   private async pollLoop(): Promise<void> {
+    console.log('[WeChat] Polling started')
     while (this.isRunning) {
       try {
         const response = await this.client.getUpdates(this.pollState.getUpdatesBuf)
 
-        if (response.ret === 0 && response.msgs) {
+        // Debug: log response
+        if (response.msgs?.length) {
+          console.log('[WeChat] Received', response.msgs.length, 'messages')
+        }
+
+        // Check for success (ret === 0 or undefined)
+        const isSuccess = response.ret === 0 || response.ret === undefined
+        if (isSuccess) {
           // Update cursor
           this.pollState.getUpdatesBuf = response.get_updates_buf
 
           // Process messages
-          for (const msg of response.msgs) {
-            await this.handleIncomingMessage(msg)
+          if (response.msgs) {
+            for (const msg of response.msgs) {
+              console.log('[WeChat] Processing message:', msg.message_id, 'type:', msg.message_type)
+              await this.handleIncomingMessage(msg)
+            }
           }
         } else if (response.ret === ILINK_ERRORS.SESSION_EXPIRED) {
           console.error('❌ WeChat session expired. Please re-login.')
           this.isRunning = false
           break
+        } else {
+          console.warn('[WeChat] Unexpected response:', response)
         }
       } catch (error) {
         console.error('[WeChat] Poll error:', error)
@@ -201,22 +214,40 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
     }
 
     this.pollState.isPolling = false
+    console.log('[WeChat] Polling stopped')
   }
 
   private async handleIncomingMessage(msg: WeixinMessage): Promise<void> {
-    if (!this.messageHandler) return
+    console.log('[WeChat] handleIncomingMessage called, message_type:', msg.message_type)
+
+    if (!this.messageHandler) {
+      console.log('[WeChat] No message handler registered!')
+      return
+    }
 
     // Skip messages from bot itself (message_type: 2)
-    if (msg.message_type === 2) return
+    if (msg.message_type === 2) {
+      console.log('[WeChat] Skipping bot message')
+      return
+    }
 
     // Skip messages without text
-    if (!msg.item_list?.length) return
+    if (!msg.item_list?.length) {
+      console.log('[WeChat] No item_list in message')
+      return
+    }
 
     // Extract text from message items
     const textItems = msg.item_list.filter((item) => item.type === 1 && item.text_item?.text)
-    if (!textItems.length) return
+    if (!textItems.length) {
+      console.log('[WeChat] No text items found')
+      return
+    }
 
     const text = textItems.map((item) => item.text_item!.text).join('\n')
+    console.log('[WeChat] Extracted text:', text)
+    console.log('[WeChat] from_user_id:', msg.from_user_id)
+    console.log('[WeChat] context_token:', msg.context_token ? 'present' : 'MISSING')
 
     // Store context token for replies
     if (msg.from_user_id && msg.context_token) {
@@ -237,7 +268,9 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
       platform: 'wechat',
     }
 
+    console.log('[WeChat] Calling message handler...')
     await this.messageHandler(ctx)
+    console.log('[WeChat] Message handler completed')
   }
 
   // ============================================

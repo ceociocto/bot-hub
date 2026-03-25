@@ -129,7 +129,11 @@ class SessionManager {
     const filePath = join(SESSIONS_DIR, `${key.replace(/:/g, '-')}.json`)
     try {
       const data = await readFile(filePath, 'utf-8')
-      return JSON.parse(data) as Session
+      const session = JSON.parse(data) as Session
+      // Convert date strings back to Date objects
+      session.createdAt = new Date(session.createdAt)
+      session.lastActivity = new Date(session.lastActivity)
+      return session
     } catch {
       return undefined
     }

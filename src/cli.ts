@@ -112,6 +112,8 @@ program
  */
 async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise<void> {
   const { message, platform } = ctx
+  console.log(`[handleMessage] Received: "${message.text}" from ${message.threadId}`)
+
   const messenger = registry.getMessenger(platform === 'wechat' ? 'wechat-ilink' : platform)
 
   if (!messenger) {
@@ -122,6 +124,7 @@ async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise
   try {
     // Parse the message
     const parsed = parseMessage(message.text)
+    console.log(`[handleMessage] Parsed:`, parsed)
 
     // Route to appropriate handler
     const result = await routeMessage(parsed, {
@@ -129,19 +132,26 @@ async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise
       platform,
       defaultAgent,
     })
+    console.log(`[handleMessage] Route result type:`, typeof result)
 
     // Handle response (string or async generator)
     if (typeof result === 'string') {
+      console.log(`[handleMessage] Sending string response:`, result.substring(0, 100))
       await messenger.sendMessage(message.threadId, result)
     } else {
       // Stream response chunks
+      console.log(`[handleMessage] Streaming response...`)
       let fullResponse = ''
       for await (const chunk of result) {
         fullResponse += chunk
+        console.log(`[handleMessage] Chunk received, length:`, chunk.length)
       }
 
       if (fullResponse) {
+        console.log(`[handleMessage] Full response length:`, fullResponse.length)
         await messenger.sendMessage(message.threadId, fullResponse)
+      } else {
+        console.log(`[handleMessage] No response generated`)
       }
     }
   } catch (error) {

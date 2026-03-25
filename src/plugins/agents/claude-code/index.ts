@@ -1,37 +1,24 @@
 // Claude Code agent adapter
 // Uses --print --output-format stream-json for programmatic interaction
 
-import { spawn, ChildProcess } from 'child_process'
-import { homedir } from 'os'
-import { join } from 'path'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { spawn } from 'child_process'
 import type { AgentAdapter } from '../../../core/types.js'
-
-const SESSIONS_DIR = join(homedir(), '.bot-hub', 'claude-sessions')
 
 interface ClaudeMessage {
   type: string
   subtype?: string
   message?: {
-    content: string
+    content: Array<{ type: string; text?: string; thinking?: string }>
     role: string
-    partial?: boolean
   }
   result?: string
   error?: string
+  is_error?: boolean
 }
 
 export class ClaudeCodeAdapter implements AgentAdapter {
   readonly name = 'claude-code'
   readonly aliases = ['cc', 'claude', 'claudecode']
-
-  private process: ChildProcess | null = null
-  private requestId = 0
-  private pendingResponses = new Map<number, {
-    resolve: (value: string) => void
-    reject: (error: Error) => void
-    chunks: string[]
-  }>()
 
   async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -41,144 +28,89 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     })
   }
 
-  async *sendPrompt(sessionId: string, prompt: string): AsyncGenerator<string> {
-    // Ensure sessions directory exists
-    await mkdir(SESSIONS_DIR, { recursive: true })
+  async *sendPrompt(_sessionId: string, prompt: string): AsyncGenerator<string> {
+    console.log(`[ClaudeCode] sendPrompt called, prompt: ${prompt}`)
 
-    // Start Claude Code process if not running
-    if (!this.process) {
-      await this.startProcess()
-    }
+    // Use a promise to wait for the full response
+    const response = await this.callClaude(prompt)
+    console.log(`[ClaudeCode] Response length: ${response.length}`)
 
-    // Build request
-    this.requestId++
-    const requestId = this.requestId
-
-    // Send prompt via stdin (JSONL format)
-    const request = JSON.stringify({
-      type: 'user_message',
-      content: prompt,
-      session_id: sessionId,
-    }) + '\n'
-
-    this.process!.stdin!.write(request)
-
-    // Collect response chunks
-    let fullResponse = ''
-    let done = false
-
-    while (!done) {
-      const chunk = await this.waitForChunk(requestId)
-      if (chunk === null) {
-        done = true
-      } else {
-        fullResponse += chunk
-        yield chunk
-      }
+    if (response) {
+      yield response
     }
   }
 
-  private startProcess(): Promise<void> {
+  private callClaude(prompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      this.process = spawn('claude', [
+      const proc = spawn('claude', [
         '--print',
+        '--verbose',
         '--output-format', 'stream-json',
-        '--input-format', 'stream-json',
+        prompt,
       ], {
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
       })
 
-      let buffer = ''
+      let stdout = ''
+      let stderr = ''
+      let fullText = ''
 
-      this.process.stdout!.on('data', (data: Buffer) => {
-        buffer += data.toString()
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep incomplete line
+      proc.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString()
+        const lines = stdout.split('\n')
+        stdout = lines.pop() || ''
 
         for (const line of lines) {
           if (!line.trim()) continue
 
           try {
             const msg: ClaudeMessage = JSON.parse(line)
-            this.handleMessage(msg)
+            console.log('[ClaudeCode] Message type:', msg.type)
+            const text = this.extractText(msg)
+            if (text) {
+              fullText += text
+            }
           } catch {
             // Skip malformed JSON
           }
         }
       })
 
-      this.process.stderr!.on('data', (data: Buffer) => {
-        console.error('[Claude Code stderr]', data.toString())
+      proc.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString()
+        console.error('[ClaudeCode stderr]', data.toString())
       })
 
-      this.process.on('error', (err) => {
+      proc.on('error', (err) => {
         reject(err)
       })
 
-      this.process.on('close', (code) => {
-        this.process = null
+      proc.on('close', (code) => {
+        console.log('[ClaudeCode] Process closed, code:', code)
         if (code !== 0) {
-          reject(new Error(`Claude Code exited with code ${code}`))
+          reject(new Error(`Claude Code exited with code ${code}: ${stderr}`))
+        } else {
+          resolve(fullText)
         }
       })
-
-      // Process started
-      resolve()
     })
   }
 
-  private handleMessage(msg: ClaudeMessage): void {
-    if (msg.type === 'assistant' && msg.message) {
-      // Stream response - we don't track request IDs in Claude Code
-      // Just broadcast to all pending
-      for (const pending of this.pendingResponses.values()) {
-        pending.chunks.push(msg.message.content)
+  private extractText(msg: ClaudeMessage): string {
+    if (msg.type === 'assistant' && msg.message?.content) {
+      const textParts: string[] = []
+      for (const item of msg.message.content) {
+        if (item.type === 'text' && item.text) {
+          textParts.push(item.text)
+        }
       }
+      return textParts.join('')
     }
-
-    if (msg.type === 'result') {
-      // Response complete
-      for (const [id, pending] of this.pendingResponses.entries()) {
-        pending.resolve(pending.chunks.join(''))
-        this.pendingResponses.delete(id)
-      }
-    }
-
-    if (msg.type === 'error' || msg.error) {
-      for (const [id, pending] of this.pendingResponses.entries()) {
-        pending.reject(new Error(msg.error || 'Unknown error'))
-        this.pendingResponses.delete(id)
-      }
-    }
-  }
-
-  private waitForChunk(_requestId: number): Promise<string | null> {
-    return new Promise((resolve, reject) => {
-      // For now, use a simple timeout
-      // TODO: Implement proper request/response tracking
-      const timeout = setTimeout(() => {
-        resolve(null) // Done
-      }, 60000) // 60s timeout
-
-      this.pendingResponses.set(_requestId, {
-        resolve: (value) => {
-          clearTimeout(timeout)
-          resolve(value)
-        },
-        reject: (err) => {
-          clearTimeout(timeout)
-          reject(err)
-        },
-        chunks: [],
-      })
-    })
+    return ''
   }
 
   stop(): void {
-    if (this.process) {
-      this.process.kill()
-      this.process = null
-    }
+    // No persistent process to stop
   }
 }
 
