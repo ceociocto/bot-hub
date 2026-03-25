@@ -13,6 +13,8 @@ const CREDENTIALS_FILE = join(homedir(), '.bot-hub', 'wechat-credentials.json')
 const POLL_TIMEOUT = 30000 // 30 seconds
 const CONTEXT_TOKEN_TTL = 5 * 60 * 1000 // 5 minutes
 
+const PROCESSED_MESSAGES_TTL = 60 * 1000 // 1 minute
+
 export class ILinkWeChatAdapter implements MessengerAdapter {
   readonly name = 'wechat-ilink'
   private client: ILinkClient
@@ -25,6 +27,7 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
   }
   private contextTokens = new Map<string, ContextTokenCache>()
   private typingTickets = new Map<string, string>()
+  private processedMessages = new Map<string, number>() // message_id -> timestamp
 
   constructor() {
     this.client = new ILinkClient()
@@ -255,7 +258,7 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
   }
 
   private async handleIncomingMessage(msg: WeixinMessage): Promise<void> {
-    console.log('[WeChat] handleIncomingMessage called, message_type:', msg.message_type)
+    console.log('[WeChat] handleIncomingMessage called, message_id:', msg.message_id, 'type:', msg.message_type)
 
     if (!this.messageHandler) {
       console.log('[WeChat] No message handler registered!')
@@ -266,6 +269,20 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
     if (msg.message_type === 2) {
       console.log('[WeChat] Skipping bot message')
       return
+    }
+
+    // Deduplicate messages - skip if already processed
+    const msgId = String(msg.message_id)
+    if (msgId && this.processedMessages.has(msgId)) {
+      console.log('[WeChat] Skipping duplicate message:', msgId)
+      return
+    }
+
+    // Mark as processed
+    if (msgId) {
+      this.processedMessages.set(msgId, Date.now())
+      // Clean up old entries
+      this.cleanupProcessedMessages()
     }
 
     // Skip messages without text
@@ -333,6 +350,15 @@ export class ILinkWeChatAdapter implements MessengerAdapter {
       contextToken: token,
       timestamp: Date.now(),
     })
+  }
+
+  private cleanupProcessedMessages(): void {
+    const now = Date.now()
+    for (const [msgId, timestamp] of this.processedMessages) {
+      if (now - timestamp > PROCESSED_MESSAGES_TTL) {
+        this.processedMessages.delete(msgId)
+      }
+    }
   }
 
   // ============================================
