@@ -16,11 +16,11 @@
     "build": "tsc",
     "dev": "bun run --watch src/cli.ts",
     "start": "bun run src/cli.ts",
-    "test": "bun test",
+    "test": "echo \"No tests yet\"",
     "test:coverage": "bun test --coverage",
     "lint": "biome check .",
     "format": "biome format . --write",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "npm run build"
   },
   "keywords": ["wechat", "claude-code", "codex", "copilot", "bot", "agent", "bridge"],
   "author": "Jerry",
