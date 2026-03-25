@@ -6,20 +6,24 @@ on:
     paths:
       - 'package.json'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Check version changed
         id: version
@@ -33,31 +37,23 @@ jobs:
 
       - name: Install dependencies
         if: steps.version.outputs.changed == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci || npm install
 
       - name: Build
         if: steps.version.outputs.changed == 'true'
-        run: bun run build
+        run: npm run build
 
       - name: Run tests
         if: steps.version.outputs.changed == 'true'
-        run: bun test
+        run: npm test
         continue-on-error: true
 
-      - name: Setup Node.js
+      - name: Publish to npm (Trusted Publishing)
         if: steps.version.outputs.changed == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Publish to npm
-        if: steps.version.outputs.changed == 'true'
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+        # Trusted publishing 自动生成 provenance，无需 --provenance 标志
 
       - name: Summary
         if: steps.version.outputs.changed == 'true'
         run: |
-          echo "Published v${{ steps.version.outputs.version }} to npm" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Published v${{ steps.version.outputs.version }} to npm via Trusted Publishing" >> $GITHUB_STEP_SUMMARY
