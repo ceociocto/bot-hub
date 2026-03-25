@@ -192,10 +192,11 @@ program
     if (!component) {
       console.log('Available components to configure:')
       console.log('\nMessengers:')
-      console.log('  wechat  - WeChat adapter')
+      console.log('  wechat   - WeChat adapter')
+      console.log('  telegram - Telegram adapter')
       console.log('\nAgents:')
-      console.log('  claude  - Claude Code agent')
-      console.log('  codex   - OpenAI Codex CLI agent')
+      console.log('  claude   - Claude Code agent')
+      console.log('  codex    - OpenAI Codex CLI agent')
       console.log('\nUsage: im-hub config <component>')
       return
     }
@@ -277,6 +278,39 @@ program
           config.agents.push('codex')
         }
         config.defaultAgent = 'codex'
+        break
+
+      case 'telegram':
+        console.log('📱 Configuring Telegram adapter...')
+        console.log('To get a bot token:')
+        console.log('1. Open Telegram and search for @BotFather')
+        console.log('2. Send /newbot and follow instructions')
+        console.log('3. Copy the bot token\n')
+
+        const { createInterface } = await import('readline')
+        const rl = createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        })
+
+        const token = await new Promise<string>((resolve) => {
+          rl.question('Enter your bot token: ', (answer) => {
+            rl.close()
+            resolve(answer.trim())
+          })
+        })
+
+        if (!token) {
+          console.log('❌ Bot token is required')
+          return
+        }
+
+        config.telegram = { botToken: token }
+        if (!config.messengers.includes('telegram')) {
+          config.messengers.push('telegram')
+        }
+
+        console.log('✅ Telegram bot token saved')
         break
 
       default:

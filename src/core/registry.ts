@@ -67,6 +67,9 @@ class PluginRegistry {
     const { ilinkWeChatAdapter } = await import('../plugins/messengers/wechat/ilink-adapter.js')
     this.registerMessenger(ilinkWeChatAdapter)
 
+    const { telegramAdapter } = await import('../plugins/messengers/telegram/telegram-adapter.js')
+    this.registerMessenger(telegramAdapter)
+
     // Load built-in agents
     const { claudeCodeAdapter } = await import('../plugins/agents/claude-code/index.js')
     this.registerAgent(claudeCodeAdapter)
