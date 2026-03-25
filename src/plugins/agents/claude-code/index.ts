@@ -5,7 +5,7 @@ import { spawn, ChildProcess } from 'child_process'
 import { homedir } from 'os'
 import { join } from 'path'
 import { mkdir, readFile, writeFile } from 'fs/promises'
-import type { AgentAdapter } from '../../core/types.js'
+import type { AgentAdapter } from '../../../core/types.js'
 
 const SESSIONS_DIR = join(homedir(), '.bot-hub', 'claude-sessions')
 
@@ -47,7 +47,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     // Start Claude Code process if not running
     if (!this.process) {
-      yield* this.startProcess()
+      await this.startProcess()
     }
 
     // Build request
@@ -78,7 +78,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     }
   }
 
-  private async *startProcess(): AsyncGenerator<string> {
+  private startProcess(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.process = spawn('claude', [
         '--print',
@@ -124,7 +124,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
       // Process started
       resolve()
-    }) as any
+    })
   }
 
   private handleMessage(msg: ClaudeMessage): void {

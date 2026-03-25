@@ -63,13 +63,15 @@ class PluginRegistry {
   }
 
   async loadBuiltInPlugins(): Promise<void> {
-    // Static imports for MVP — no dynamic loading
-    // These will be added as plugins are implemented:
-    // - WeChat adapter
-    // - Claude Code agent
+    // Load built-in messengers
+    const { ilinkWeChatAdapter } = await import('../plugins/messengers/wechat/ilink-adapter.js')
+    this.registerMessenger(ilinkWeChatAdapter)
 
-    // For now, just log that we're ready
-    console.log('Plugin registry initialized')
+    // Load built-in agents
+    const { claudeCodeAdapter } = await import('../plugins/agents/claude-code/index.js')
+    this.registerAgent(claudeCodeAdapter)
+
+    console.log(`Plugin registry initialized: ${this.messengers.size} messengers, ${this.agents.size} agents`)
   }
 }
 

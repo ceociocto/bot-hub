@@ -7,6 +7,8 @@ import { join } from 'path'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { registry } from './core/registry.js'
 import { sessionManager } from './core/session.js'
+import { parseMessage, routeMessage } from './core/router.js'
+import type { MessageContext } from './core/types.js'
 
 const CONFIG_DIR = join(homedir(), '.bot-hub')
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json')
@@ -56,24 +58,100 @@ program
     // Load plugins
     await registry.loadBuiltInPlugins()
 
-    // TODO: Start messenger adapters based on config
-    console.log('Messengers:', config.messengers)
-    console.log('Agents:', config.agents)
-    console.log('Default agent:', config.defaultAgent)
+    // Get messengers to start
+    const messengersToStart = config.messengers.length > 0
+      ? config.messengers
+      : ['wechat-ilink'] // Default to wechat-ilink
+
+    // Start messenger adapters
+    for (const name of messengersToStart) {
+      const messenger = registry.getMessenger(name)
+      if (!messenger) {
+        console.warn(`⚠️ Messenger "${name}" not found, skipping`)
+        continue
+      }
+
+      // Set up message handler
+      messenger.onMessage(async (ctx: MessageContext) => {
+        await handleMessage(ctx, config.defaultAgent)
+      })
+
+      try {
+        await messenger.start()
+        console.log(`✅ Started messenger: ${name}`)
+      } catch (error) {
+        console.error(`❌ Failed to start messenger ${name}:`, error)
+      }
+    }
 
     console.log('\n✅ Bot hub is running!')
     console.log('Press Ctrl+C to stop')
 
     // Keep process alive
-    process.on('SIGINT', () => {
+    process.on('SIGINT', async () => {
       console.log('\n👋 Shutting down...')
       sessionManager.stop()
+
+      // Stop all messengers
+      for (const name of registry.listMessengers()) {
+        const messenger = registry.getMessenger(name)
+        if (messenger) {
+          await messenger.stop()
+        }
+      }
+
       process.exit(0)
     })
 
     // Wait forever
     await new Promise(() => {})
   })
+
+/**
+ * Handle incoming message from any messenger
+ */
+async function handleMessage(ctx: MessageContext, defaultAgent: string): Promise<void> {
+  const { message, platform } = ctx
+  const messenger = registry.getMessenger(platform === 'wechat' ? 'wechat-ilink' : platform)
+
+  if (!messenger) {
+    console.error(`No messenger found for platform: ${platform}`)
+    return
+  }
+
+  try {
+    // Parse the message
+    const parsed = parseMessage(message.text)
+
+    // Route to appropriate handler
+    const result = await routeMessage(parsed, {
+      threadId: message.threadId,
+      platform,
+      defaultAgent,
+    })
+
+    // Handle response (string or async generator)
+    if (typeof result === 'string') {
+      await messenger.sendMessage(message.threadId, result)
+    } else {
+      // Stream response chunks
+      let fullResponse = ''
+      for await (const chunk of result) {
+        fullResponse += chunk
+      }
+
+      if (fullResponse) {
+        await messenger.sendMessage(message.threadId, fullResponse)
+      }
+    }
+  } catch (error) {
+    console.error('Error handling message:', error)
+    await messenger.sendMessage(
+      message.threadId,
+      '❌ An error occurred processing your message. Please try again.'
+    )
+  }
+}
 
 program
   .command('config [component]')
@@ -94,10 +172,40 @@ program
     switch (component) {
       case 'wechat':
         console.log('📱 Configuring WeChat adapter...')
-        console.log('Scan the QR code with WeChat to login.')
-        // TODO: Implement wechaty QR login
-        if (!config.messengers.includes('wechat')) {
-          config.messengers.push('wechat')
+        console.log('Fetching QR code...\n')
+
+        // Import the iLink adapter for QR login
+        const { ILinkWeChatAdapter } = await import('./plugins/messengers/wechat/ilink-adapter.js')
+        const adapter = new ILinkWeChatAdapter()
+
+        try {
+          // Get QR code URL and token
+          const { qrUrl, qrToken } = await adapter.startQRLogin()
+
+          console.log('📱 Scan this QR code with WeChat:\n')
+          console.log(qrUrl)
+          console.log('\n')
+
+          // Poll for login status
+          const credentials = await adapter.waitForQRLogin(qrToken, (status) => {
+            console.log(`[${new Date().toLocaleTimeString()}] ${status}`)
+          })
+
+          if (credentials) {
+            console.log(`\n✅ Logged in as ${credentials.userId}`)
+            console.log(`   Bot ID: ${credentials.accountId}`)
+
+            // Add wechat-ilink to config
+            if (!config.messengers.includes('wechat-ilink')) {
+              config.messengers.push('wechat-ilink')
+            }
+          } else {
+            console.log('\n❌ Login failed or timed out')
+            return
+          }
+        } catch (error) {
+          console.error('\n❌ Failed to configure WeChat:', error)
+          return
         }
         break
 
