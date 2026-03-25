@@ -146,6 +146,18 @@ bun test
 bun run build
 ```
 
+## Roadmap
+
+### v0.1.0 (MVP)
+- [ ] WeChat adapter with QR login
+- [ ] Claude Code agent integration
+- [ ] Basic command routing
+
+### v0.2.0
+- [ ] Feishu adapter
+- [ ] Codex agent
+- [ ] Session persistence
+
 ## License
 
 MIT
