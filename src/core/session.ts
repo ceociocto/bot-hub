@@ -86,6 +86,37 @@ class SessionManager {
   }
 
   /**
+   * Get existing session without creating a new one
+   * Returns undefined if no session exists or it's expired
+   */
+  async getExistingSession(platform: string, threadId: string): Promise<Session | undefined> {
+    const key = `${platform}:${threadId}`
+    const now = new Date()
+
+    // Check memory cache
+    let session = this.sessions.get(key)
+
+    if (session) {
+      // Check if expired
+      if (now.getTime() - session.lastActivity.getTime() > session.ttl) {
+        return undefined
+      }
+      return session
+    }
+
+    // Try loading from disk
+    session = await this.loadSession(key)
+
+    if (session && now.getTime() - session.lastActivity.getTime() <= session.ttl) {
+      // Found and valid — cache it
+      this.sessions.set(key, session)
+      return session
+    }
+
+    return undefined
+  }
+
+  /**
    * Switch the agent for a session
    * Generates a new session ID but preserves thread identity
    */

@@ -61,13 +61,20 @@ export async function routeMessage(
         return `❌ Agent "${parsed.agent}" not found. Use /agents to see available agents.`
       }
 
+      // Always switch the session agent (even without prompt)
+      await sessionManager.switchAgent(ctx.platform, ctx.threadId, agent.name)
+
       // If no prompt, just confirm switch
       if (!parsed.prompt) {
         return `✅ Switched to ${agent.name}`
       }
 
-      // Get or create session, then call agent
-      const session = await sessionManager.switchAgent(ctx.platform, ctx.threadId, agent.name)
+      // Get session and call agent
+      const session = await sessionManager.getOrCreateSession(
+        ctx.platform,
+        ctx.threadId,
+        agent.name
+      )
       return agent.sendPrompt(session.id, parsed.prompt)
     }
 
@@ -76,10 +83,13 @@ export async function routeMessage(
     }
 
     case 'default': {
-      // Use default agent
-      const agent = registry.findAgent(ctx.defaultAgent)
+      // Try to get existing session to use its agent, otherwise fall back to default
+      const existingSession = await sessionManager.getExistingSession(ctx.platform, ctx.threadId)
+      const agentName = existingSession?.agent || ctx.defaultAgent
+
+      const agent = registry.findAgent(agentName)
       if (!agent) {
-        return `❌ Default agent "${ctx.defaultAgent}" not configured.`
+        return `❌ Agent "${agentName}" not configured.`
       }
 
       // Empty prompt → just acknowledge
@@ -91,7 +101,7 @@ export async function routeMessage(
       const session = await sessionManager.getOrCreateSession(
         ctx.platform,
         ctx.threadId,
-        ctx.defaultAgent
+        agentName
       )
       return agent.sendPrompt(session.id, parsed.prompt)
     }

@@ -74,6 +74,9 @@ class PluginRegistry {
     const { codexAdapter } = await import('../plugins/agents/codex/index.js')
     this.registerAgent(codexAdapter)
 
+    const { copilotAdapter } = await import('../plugins/agents/copilot/index.js')
+    this.registerAgent(copilotAdapter)
+
     console.log(`Plugin registry initialized: ${this.messengers.size} messengers, ${this.agents.size} agents`)
   }
 }
