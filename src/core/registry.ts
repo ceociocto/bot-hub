@@ -71,6 +71,9 @@ class PluginRegistry {
     const { claudeCodeAdapter } = await import('../plugins/agents/claude-code/index.js')
     this.registerAgent(claudeCodeAdapter)
 
+    const { codexAdapter } = await import('../plugins/agents/codex/index.js')
+    this.registerAgent(codexAdapter)
+
     console.log(`Plugin registry initialized: ${this.messengers.size} messengers, ${this.agents.size} agents`)
   }
 }

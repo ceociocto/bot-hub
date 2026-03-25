@@ -195,6 +195,7 @@ program
       console.log('  wechat  - WeChat adapter')
       console.log('\nAgents:')
       console.log('  claude  - Claude Code agent')
+      console.log('  codex   - OpenAI Codex CLI agent')
       console.log('\nUsage: bot-hub config <component>')
       return
     }
@@ -245,8 +246,8 @@ program
         console.log('🤖 Configuring Claude Code agent...')
         // Check if claude CLI is available
         const { spawn } = await import('child_process')
-        const checkProcess = spawn('claude', ['--version'], { stdio: 'ignore' })
-        checkProcess.on('close', (code) => {
+        const checkClaude = spawn('claude', ['--version'], { stdio: 'ignore' })
+        checkClaude.on('close', (code) => {
           if (code === 0) {
             console.log('✅ Claude Code CLI found!')
           } else {
@@ -258,6 +259,24 @@ program
           config.agents.push('claude-code')
         }
         config.defaultAgent = 'claude-code'
+        break
+
+      case 'codex':
+        console.log('🤖 Configuring Codex agent...')
+        const { spawn: spawnCodex } = await import('child_process')
+        const checkCodex = spawnCodex('codex', ['--version'], { stdio: 'ignore' })
+        checkCodex.on('close', (code) => {
+          if (code === 0) {
+            console.log('✅ Codex CLI found!')
+          } else {
+            console.log('❌ Codex CLI not found.')
+            console.log('Install with: npm install -g @openai/codex')
+          }
+        })
+        if (!config.agents.includes('codex')) {
+          config.agents.push('codex')
+        }
+        config.defaultAgent = 'codex'
         break
 
       default:

@@ -61,6 +61,7 @@ hello                  # Send to default agent
 /help                 # Show available commands
 /agents               # List available agents
 /cc explain this code # Switch to Claude Code
+/cx explain this code # Switch to Codex
 ```
 
 ## Architecture
@@ -78,7 +79,7 @@ hello                  # Send to default agent
 ┌─────────────────┐      ┌─────────────────┐
 │ Messenger Plugins│      │  Agent Plugins  │
 │ • wechat         │      │ • claude-code    │
-│ • feishu (v2)    │      │ • codex (v2)     │
+│ • feishu (v2)    │      │ • codex          │
 │ • telegram (v2)  │      │ • copilot (v2)   │
 └─────────────────┘      └─────────────────┘
 ```
@@ -149,13 +150,13 @@ bun run build
 ## Roadmap
 
 ### v0.1.0 (MVP)
-- [ ] WeChat adapter with QR login
-- [ ] Claude Code agent integration
-- [ ] Basic command routing
+- [x] WeChat adapter with QR login
+- [x] Claude Code agent integration
+- [x] Basic command routing
 
 ### v0.2.0
+- [x] Codex agent
 - [ ] Feishu adapter
-- [ ] Codex agent
 - [ ] Session persistence
 
 ## License
