@@ -231,6 +231,7 @@ program
       console.log('\nAgents:')
       console.log('  claude   - Claude Code agent')
       console.log('  codex    - OpenAI Codex CLI agent')
+      console.log('  opencode - OpenCode CLI agent')
       console.log('\nUsage: im-hub config <component>')
       return
     }
@@ -310,6 +311,23 @@ program
           config.agents.push('codex')
         }
         config.defaultAgent = 'codex'
+        break
+
+      case 'opencode':
+        console.log('🤖 Configuring OpenCode agent...')
+        const checkOpenCode = crossSpawn('opencode', ['--version'], { stdio: 'ignore' })
+        checkOpenCode.on('close', (code) => {
+          if (code === 0) {
+            console.log('✅ OpenCode CLI found!')
+          } else {
+            console.log('❌ OpenCode CLI not found.')
+            console.log('Install with: npm i -g opencode-ai')
+          }
+        })
+        if (!config.agents.includes('opencode')) {
+          config.agents.push('opencode')
+        }
+        config.defaultAgent = 'opencode'
         break
 
       case 'telegram':
