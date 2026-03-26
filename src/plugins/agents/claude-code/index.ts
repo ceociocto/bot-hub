@@ -1,8 +1,8 @@
 // Claude Code agent adapter
 // Uses --print --output-format stream-json for programmatic interaction
 
-import { spawn } from 'child_process'
 import type { AgentAdapter } from '../../../core/types.js'
+import { crossSpawn } from '../../../utils/cross-platform.js'
 
 interface ClaudeMessage {
   type: string
@@ -22,7 +22,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
   async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn('claude', ['--version'], { stdio: 'ignore' })
+      const proc = crossSpawn('claude', ['--version'], { stdio: 'ignore' })
       proc.on('close', (code) => resolve(code === 0))
       proc.on('error', () => resolve(false))
     })
@@ -42,7 +42,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
   private callClaude(prompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const proc = spawn('claude', [
+      const proc = crossSpawn('claude', [
         '--print',
         '--verbose',
         '--output-format', 'stream-json',
@@ -55,7 +55,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       let stderr = ''
       let fullText = ''
 
-      proc.stdout.on('data', (data: Buffer) => {
+      proc.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString()
         const lines = stdout.split('\n')
         stdout = lines.pop() || ''
@@ -76,7 +76,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         }
       })
 
-      proc.stderr.on('data', (data: Buffer) => {
+      proc.stderr?.on('data', (data: Buffer) => {
         stderr += data.toString()
         console.error('[ClaudeCode stderr]', data.toString())
       })

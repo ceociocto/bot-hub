@@ -8,6 +8,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { registry } from './core/registry.js'
 import { sessionManager } from './core/session.js'
 import { parseMessage, routeMessage } from './core/router.js'
+import { crossSpawn } from './utils/cross-platform.js'
 import type { MessageContext } from './core/types.js'
 
 const CONFIG_DIR = join(homedir(), '.im-hub')
@@ -278,8 +279,7 @@ program
       case 'claude':
         console.log('🤖 Configuring Claude Code agent...')
         // Check if claude CLI is available
-        const { spawn } = await import('child_process')
-        const checkClaude = spawn('claude', ['--version'], { stdio: 'ignore' })
+        const checkClaude = crossSpawn('claude', ['--version'], { stdio: 'ignore' })
         checkClaude.on('close', (code) => {
           if (code === 0) {
             console.log('✅ Claude Code CLI found!')
@@ -296,8 +296,7 @@ program
 
       case 'codex':
         console.log('🤖 Configuring Codex agent...')
-        const { spawn: spawnCodex } = await import('child_process')
-        const checkCodex = spawnCodex('codex', ['--version'], { stdio: 'ignore' })
+        const checkCodex = crossSpawn('codex', ['--version'], { stdio: 'ignore' })
         checkCodex.on('close', (code) => {
           if (code === 0) {
             console.log('✅ Codex CLI found!')

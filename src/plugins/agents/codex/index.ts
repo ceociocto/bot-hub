@@ -1,8 +1,8 @@
 // OpenAI Codex CLI agent adapter
 // Uses `codex exec --json` for programmatic interaction
 
-import { spawn } from 'child_process'
 import type { AgentAdapter } from '../../../core/types.js'
+import { crossSpawn } from '../../../utils/cross-platform.js'
 
 interface CodexEvent {
   type: string
@@ -20,7 +20,7 @@ export class CodexAdapter implements AgentAdapter {
 
   async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn('codex', ['--version'], { stdio: 'ignore' })
+      const proc = crossSpawn('codex', ['--version'], { stdio: 'ignore' })
       proc.on('close', (code) => resolve(code === 0))
       proc.on('error', () => resolve(false))
     })
@@ -39,7 +39,7 @@ export class CodexAdapter implements AgentAdapter {
 
   private callCodex(prompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const proc = spawn('codex', [
+      const proc = crossSpawn('codex', [
         'exec',
         '--json',
         '--full-auto',
@@ -54,7 +54,7 @@ export class CodexAdapter implements AgentAdapter {
       let fullText = ''
       let errorMessage = ''
 
-      proc.stdout.on('data', (data: Buffer) => {
+      proc.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString()
         const lines = stdout.split('\n')
         stdout = lines.pop() || ''
@@ -82,7 +82,7 @@ export class CodexAdapter implements AgentAdapter {
         }
       })
 
-      proc.stderr.on('data', (data: Buffer) => {
+      proc.stderr?.on('data', (data: Buffer) => {
         stderr += data.toString()
         console.error('[Codex stderr]', data.toString())
       })

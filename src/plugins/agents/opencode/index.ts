@@ -1,8 +1,8 @@
 // OpenCode CLI agent adapter
 // Uses `opencode run --format json` for programmatic interaction
 
-import { spawn } from 'child_process'
 import type { AgentAdapter } from '../../../core/types.js'
+import { crossSpawn } from '../../../utils/cross-platform.js'
 
 interface OpenCodePart {
   type: string
@@ -24,7 +24,7 @@ export class OpenCodeAdapter implements AgentAdapter {
 
   async isAvailable(): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn('opencode', ['--version'], { stdio: 'ignore' })
+      const proc = crossSpawn('opencode', ['--version'], { stdio: 'ignore' })
       proc.on('close', (code) => resolve(code === 0))
       proc.on('error', () => resolve(false))
     })
@@ -43,7 +43,7 @@ export class OpenCodeAdapter implements AgentAdapter {
 
   private callOpenCode(prompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const proc = spawn('opencode', [
+      const proc = crossSpawn('opencode', [
         'run',
         '--format', 'json',
         prompt,
@@ -56,7 +56,7 @@ export class OpenCodeAdapter implements AgentAdapter {
       let fullText = ''
       let errorMessage = ''
 
-      proc.stdout.on('data', (data: Buffer) => {
+      proc.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString()
         const lines = stdout.split('\n')
         stdout = lines.pop() || ''
@@ -83,7 +83,7 @@ export class OpenCodeAdapter implements AgentAdapter {
         }
       })
 
-      proc.stderr.on('data', (data: Buffer) => {
+      proc.stderr?.on('data', (data: Buffer) => {
         stderr += data.toString()
         console.error('[OpenCode stderr]', data.toString())
       })
