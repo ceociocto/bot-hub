@@ -376,8 +376,10 @@ program
         console.log('1. Go to https://open.feishu.cn/app')
         console.log('2. Create a custom bot app')
         console.log('3. Enable Bot capability')
-        console.log('4. Configure event subscriptions (Subscribe to "Receive Message" event)')
-        console.log('5. Copy App ID and App Secret\n')
+        console.log('4. Configure event subscriptions (Subscribe to "im.message.receive_v1" event)')
+        console.log('5. Go to Permissions management and enable: im:message, im:message.p2p_msg:readonly, im:message:send_as_bot')
+        console.log('6. Create a version and publish it')
+        console.log('7. Copy App ID and App Secret\n')
 
         const { createInterface: createRl } = await import('readline')
         const feishuRl = createRl({
