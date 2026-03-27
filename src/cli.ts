@@ -268,6 +268,7 @@ program
       console.log('  claude   - Claude Code agent')
       console.log('  codex    - OpenAI Codex CLI agent')
       console.log('  opencode - OpenCode CLI agent')
+      console.log('  copilot  - GitHub Copilot CLI agent')
       console.log('\nUsage: im-hub config <component>')
       return
     }
@@ -453,6 +454,50 @@ program
         console.log('✅ Feishu bot credentials saved')
         console.log(`\n✅ Using WebSocket long polling mode - no webhook configuration needed!`)
         console.log(`   The bot will automatically connect to Feishu servers.`)
+        break
+
+      case 'opencode':
+        console.log('🤖 Configuring OpenCode agent...')
+        // Check if opencode CLI is available
+        const openCodeAvailable = await new Promise<boolean>((resolve) => {
+          const proc = crossSpawn('opencode', ['--version'], { stdio: 'ignore' })
+          proc.on('error', () => resolve(false))
+          proc.on('close', (code) => resolve(code === 0))
+        })
+        if (openCodeAvailable) {
+          console.log('✅ OpenCode CLI found!')
+          console.log('\nTo authenticate, run: opencode auth login')
+        } else {
+          console.log('❌ OpenCode CLI not found.')
+          console.log('Install with: npm i -g opencode-ai@latest')
+          console.log('Or visit: https://github.com/anomalyco/opencode')
+        }
+        if (!config.agents.includes('opencode')) {
+          config.agents.push('opencode')
+        }
+        config.defaultAgent = 'opencode'
+        break
+
+      case 'copilot':
+        console.log('🤖 Configuring GitHub Copilot CLI agent...')
+        // Check if copilot CLI is available
+        const copilotAvailable = await new Promise<boolean>((resolve) => {
+          const proc = crossSpawn('github-copilot', ['--version'], { stdio: 'ignore' })
+          proc.on('error', () => resolve(false))
+          proc.on('close', (code) => resolve(code === 0))
+        })
+        if (copilotAvailable) {
+          console.log('✅ GitHub Copilot CLI found!')
+          console.log('\nTo authenticate, run: github-copilot auth')
+        } else {
+          console.log('❌ GitHub Copilot CLI not found.')
+          console.log('Install with: npm i -g @github/copilot')
+          console.log('Or visit: https://github.com/features/copilot/cli')
+        }
+        if (!config.agents.includes('copilot')) {
+          config.agents.push('copilot')
+        }
+        config.defaultAgent = 'copilot'
         break
 
       default:

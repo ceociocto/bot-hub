@@ -60,8 +60,8 @@ const AVAILABLE_MESSENGERS: MessengerInfo[] = [
 const AGENT_PACKAGES: Record<string, AgentInstallHint> = {
   'claude-code': { agent: 'claude-code', npmPackage: '@anthropic-ai/claude-code', command: 'claude' },
   'codex': { agent: 'codex', npmPackage: '@openai/codex', command: 'codex' },
-  'copilot': { agent: 'copilot', npmPackage: '@githubnext/github-copilot-cli', command: 'gh-copilot' },
-  'opencode': { agent: 'opencode', npmPackage: 'opencode', command: 'opencode' },
+  'copilot': { agent: 'copilot', npmPackage: '@github/copilot', command: 'github-copilot' },
+  'opencode': { agent: 'opencode', npmPackage: 'opencode-ai', command: 'opencode' },
 }
 
 // ============================================
@@ -198,20 +198,18 @@ export async function isAgentAvailableCached(agentName: string): Promise<boolean
 export function formatAgentInstallHint(missing: string[]): string {
   if (missing.length === 0) return ''
 
-  if (missing.length === 1) {
-    const hint = AGENT_PACKAGES[missing[0]]
-    if (hint) {
-      return `Install ${missing[0]} with: npm i -g ${hint.npmPackage}`
-    }
-    return `Install ${missing[0]} with: npm i -g ${missing[0]}`
+  const getInstallHint = (name: string): string => {
+    const hint = AGENT_PACKAGES[name]
+    if (!hint) return `npm i -g ${name}`
+    return `npm i -g ${hint.npmPackage}`
   }
 
-  const packages = missing.map((name) => {
-    const hint = AGENT_PACKAGES[name]
-    return hint ? hint.npmPackage : name
-  })
+  if (missing.length === 1) {
+    return `Install ${missing[0]}: ${getInstallHint(missing[0])}`
+  }
 
-  return `Install with: npm i -g ${packages.join(' ')}`
+  const hints = missing.map((name) => `  - ${name}: ${getInstallHint(name)}`)
+  return `Install agents:\n${hints.join('\n')}`
 }
 
 /**
