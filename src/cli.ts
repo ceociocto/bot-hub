@@ -10,39 +10,33 @@ import { sessionManager } from './core/session.js'
 import { parseMessage, routeMessage } from './core/router.js'
 import { crossSpawn } from './utils/cross-platform.js'
 import type { MessageContext } from './core/types.js'
+import {
+  checkMessengerConfig,
+  checkAgentAvailability,
+  runMessengerOnboarding,
+  formatAgentInstallHint,
+  formatMessengerStartError,
+  loadConfig as loadOnboardingConfig,
+  saveConfig as saveOnboardingConfig,
+  type Config as OnboardingConfig,
+} from './core/onboarding.js'
+
+// Helper to format agent install hint for missing agents
+function formatMissingAgentHint(missing: string[]): string {
+  return formatAgentInstallHint(missing)
+}
 
 const CONFIG_DIR = join(homedir(), '.im-hub')
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json')
 
-interface Config {
-  messengers: string[]
-  agents: string[]
-  defaultAgent: string
-  telegram?: { botToken: string; channelId?: string }
-  feishu?: {
-    appId: string
-    appSecret: string
-    channelId?: string
-  }
-  [key: string]: unknown
-}
+type Config = OnboardingConfig
 
 async function loadConfig(): Promise<Config> {
-  try {
-    const data = await readFile(CONFIG_FILE, 'utf-8')
-    return JSON.parse(data)
-  } catch {
-    return {
-      messengers: [],
-      agents: [],
-      defaultAgent: 'claude-code',
-    }
-  }
+  return loadOnboardingConfig()
 }
 
 async function saveConfig(config: Config): Promise<void> {
-  await mkdir(CONFIG_DIR, { recursive: true })
-  await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2))
+  return saveOnboardingConfig(config)
 }
 
 program
@@ -56,19 +50,54 @@ program
   .action(async () => {
     console.log('🚀 Starting im-hub...')
 
-    const config = await loadConfig()
+    let config = await loadConfig()
     console.log(`Config loaded from ${CONFIG_FILE}`)
 
     // Initialize session manager
     await sessionManager.start()
 
-    // Load plugins
+    // Load plugins FIRST (agents won't be registered until this runs)
     await registry.loadBuiltInPlugins()
 
-    // Get messengers to start
+    // ============================================
+    // ONBOARDING CHECKS (before default fill!)
+    // ============================================
+
+    // Check messengers BEFORE the default fill
+    const onboardingResult = checkMessengerConfig(config)
+    if (onboardingResult.needsOnboarding) {
+      console.log('👋 No messengers configured.\n')
+      const newConfig = await runMessengerOnboarding(config)
+      if (!newConfig) {
+        console.log('\n❌ Onboarding cancelled.')
+        console.log('Run "im-hub config <messenger>" to configure manually.')
+        process.exit(1)
+      }
+      config = newConfig
+      await saveConfig(config)
+    }
+
+    // Check agents (async, AFTER plugins loaded)
+    const agentResult = await checkAgentAvailability()
+    if (agentResult.allMissing) {
+      console.log('\n⚠️ No coding agents found!')
+      console.log(formatAgentInstallHint(agentResult.missing))
+      console.log('\nInstall at least one agent, then run im-hub start again.')
+      process.exit(1)
+    } else if (agentResult.missing.length > 0) {
+      console.log('⚠️ Some agents not available:', agentResult.missing.join(', '))
+      console.log('   ' + formatAgentInstallHint(agentResult.missing))
+      console.log('')
+    }
+
+    // ============================================
+    // START MESSENGERS
+    // ============================================
+
+    // Get messengers to start (now config.messengers is populated)
     const messengersToStart = config.messengers.length > 0
       ? config.messengers
-      : ['wechat-ilink'] // Default to wechat-ilink
+      : ['wechat-ilink'] // Fallback default
 
     // Start messenger adapters
     for (const name of messengersToStart) {
@@ -87,7 +116,14 @@ program
         await messenger.start()
         console.log(`✅ Started messenger: ${name}`)
       } catch (error) {
-        console.error(`❌ Failed to start messenger ${name}:`, error)
+        const errMsg = error instanceof Error ? error.message : String(error)
+        console.error(`❌ Failed to start messenger ${name}:`)
+        console.error(`   ${errMsg}`)
+        // Show actionable next step, not stack trace
+        const hint = formatMessengerStartError(name, error)
+        if (hint !== errMsg) {
+          console.error(`   ${hint}`)
+        }
       }
     }
 

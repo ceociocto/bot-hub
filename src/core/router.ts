@@ -3,6 +3,7 @@
 import type { ParsedMessage, MessageContext } from './types.js'
 import { registry } from './registry.js'
 import { sessionManager } from './session.js'
+import { isAgentAvailableCached, formatAgentNotAvailableError } from './onboarding.js'
 
 /**
  * Parse a message to determine how to route it
@@ -62,6 +63,11 @@ export async function routeMessage(
         return `❌ Agent "${parsed.agent}" not found. Use /agents to see available agents.`
       }
 
+      // Check if agent is available at runtime
+      if (!(await isAgentAvailableCached(agent.name))) {
+        return formatAgentNotAvailableError(agent.name)
+      }
+
       // Always switch the session agent (even without prompt)
       await sessionManager.switchAgent(ctx.platform, ctx.channelId, ctx.threadId, agent.name)
 
@@ -92,6 +98,11 @@ export async function routeMessage(
       const agent = registry.findAgent(agentName)
       if (!agent) {
         return `❌ Agent "${agentName}" not configured.`
+      }
+
+      // Check if agent is available at runtime
+      if (!(await isAgentAvailableCached(agent.name))) {
+        return formatAgentNotAvailableError(agent.name)
       }
 
       // Empty prompt → just acknowledge
