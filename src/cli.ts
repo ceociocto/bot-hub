@@ -8,7 +8,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { registry } from './core/registry.js'
 import { sessionManager } from './core/session.js'
 import { parseMessage, routeMessage } from './core/router.js'
-import { crossSpawn } from './utils/cross-platform.js'
+import { crossSpawn, isMac, isWindows } from './utils/cross-platform.js'
 import type { MessageContext } from './core/types.js'
 import {
   checkMessengerConfig,
@@ -480,19 +480,25 @@ program
 
       case 'copilot':
         console.log('🤖 Configuring GitHub Copilot CLI agent...')
-        // Check if copilot CLI is available
-        const copilotAvailable = await new Promise<boolean>((resolve) => {
-          const proc = crossSpawn('github-copilot', ['--version'], { stdio: 'ignore' })
-          proc.on('error', () => resolve(false))
-          proc.on('close', (code) => resolve(code === 0))
-        })
+        // Check if copilot CLI is available (multiple installation methods)
+        const { CopilotAdapter } = await import('./plugins/agents/copilot/index.js')
+        const copilotAdapter = new CopilotAdapter()
+        const copilotAvailable = await copilotAdapter.isAvailable()
         if (copilotAvailable) {
           console.log('✅ GitHub Copilot CLI found!')
-          console.log('\nTo authenticate, run: github-copilot auth')
         } else {
           console.log('❌ GitHub Copilot CLI not found.')
-          console.log('Install with: npm i -g @github/copilot')
-          console.log('Or visit: https://github.com/features/copilot/cli')
+          console.log('\n安装方式 (选择其一):')
+          console.log('  npm i -g @github/copilot')
+          console.log('  gh extension install github/gh-copilot')
+          if (isMac) {
+            console.log('  brew install copilot-cli')
+          }
+          if (isWindows) {
+            console.log('  winget install GitHub.Copilot')
+          }
+          console.log('  或安装 VS Code Copilot Chat 扩展')
+          console.log('\n详情: https://github.com/features/copilot/cli')
         }
         if (!config.agents.includes('copilot')) {
           config.agents.push('copilot')

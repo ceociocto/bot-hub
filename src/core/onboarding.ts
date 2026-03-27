@@ -60,7 +60,7 @@ const AVAILABLE_MESSENGERS: MessengerInfo[] = [
 const AGENT_PACKAGES: Record<string, AgentInstallHint> = {
   'claude-code': { agent: 'claude-code', npmPackage: '@anthropic-ai/claude-code', command: 'claude' },
   'codex': { agent: 'codex', npmPackage: '@openai/codex', command: 'codex' },
-  'copilot': { agent: 'copilot', npmPackage: '@github/copilot', command: 'github-copilot' },
+  'copilot': { agent: 'copilot', npmPackage: '@github/copilot', command: 'copilot' },
   'opencode': { agent: 'opencode', npmPackage: 'opencode-ai', command: 'opencode' },
 }
 
@@ -216,10 +216,21 @@ export function formatAgentInstallHint(missing: string[]): string {
  * Format error message when agent is not available
  */
 export function formatAgentNotAvailableError(agentName: string): string {
-  const hint = AGENT_PACKAGES[agentName]
-  const installCmd = hint ? `npm i -g ${hint.npmPackage}` : `npm i -g ${agentName}`
+  let installHint: string
 
-  return `❌ ${agentName} is not installed or not available.\n\nInstall: ${installCmd}\n\nOr try another agent:\n  /cc - Claude Code\n  /cx - Codex\n  /co - Copilot\n  /oc - OpenCode`
+  if (agentName === 'copilot') {
+    installHint = `安装方式 (选择其一):
+  npm i -g @github/copilot
+  gh extension install github/gh-copilot
+  brew install copilot-cli (macOS)
+  winget install GitHub.Copilot (Windows)
+  或安装 VS Code Copilot Chat 扩展`
+  } else {
+    const hint = AGENT_PACKAGES[agentName]
+    installHint = hint ? `npm i -g ${hint.npmPackage}` : `npm i -g ${agentName}`
+  }
+
+  return `❌ ${agentName} is not installed or not available.\n\n${installHint}\n\nOr try another agent:\n  /cc - Claude Code\n  /cx - Codex\n  /co - Copilot\n  /oc - OpenCode`
 }
 
 // ============================================
