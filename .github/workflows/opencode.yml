@@ -1,5 +1,12 @@
 name: OpenCode Issue Resolver (PR Mode)
 
+# 添加并发控制逻辑
+concurrency:
+  # 使用 issue 编号作为分组 ID。
+  # 这样同一个 Issue 的多次触发会排队，而不同 Issue 可以并行或有序进行。
+  group: ${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: true # 如果同一个 Issue 有新指令，取消正在进行的旧任务
+
 on:
   issues:
     types: [labeled]
@@ -8,7 +15,6 @@ on:
 
 jobs:
   opencode_fix:
-    # 仅限所有者触发，逻辑保持不变
     if: |
       github.event.sender.login == github.repository_owner && 
       (
@@ -19,9 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write # 必须开启此权限以创建 PR
+      id-token: write      # OIDC 令牌权限
+      contents: write      # 修改代码权限
+      issues: write        # 回复 Issue 权限
+      pull-requests: write # 创建 PR 权限
 
     steps:
       - name: Checkout Code
@@ -33,12 +40,10 @@ jobs:
         uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 自动获取，无需手动设置
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           model: "opencode/minimax-m2.5-free"
           mode: "fix"
-          # --- 改动部分 ---
-          auto_commit: false       # 禁止直接提交到当前分支
-          create_pr: true          # 强制要求 AI 创建一个新的 PR
-          branch_prefix: "oc-fix/" # AI 创建的分支前缀，方便管理
-          # ----------------
+          auto_commit: false
+          create_pr: true
+          branch_prefix: "oc-fix/"
