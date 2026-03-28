@@ -1,30 +1,44 @@
-name: opencode
+name: OpenCode Issue Resolver (PR Mode)
 
 on:
   issues:
     types: [labeled]
-  pull_request:
-    types: [opened, synchronize]
-
-permissions:
-  id-token: write
-  contents: write
-  issues: write
-  pull-requests: write
+  issue_comment:
+    types: [created]
 
 jobs:
-  opencode:
+  opencode_fix:
+    # 仅限所有者触发，逻辑保持不变
     if: |
-      (github.event_name == 'issues' && contains(github.event.label.name, 'opencode')) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'opencode'))
+      github.event.sender.login == github.repository_owner && 
+      (
+        (github.event.label.name == 'opencode') || 
+        (github.event.comment && contains(github.event.comment.body, '/oc'))
+      )
+    
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write # 必须开启此权限以创建 PR
 
-      - name: Run OpenCode
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: OpenCode Zen Execution
         uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 自动获取，无需手动设置
         with:
-          model: opencode/zen
+          model: "opencode/minimax-m2.5-free"
+          mode: "fix"
+          # --- 改动部分 ---
+          auto_commit: false       # 禁止直接提交到当前分支
+          create_pr: true          # 强制要求 AI 创建一个新的 PR
+          branch_prefix: "oc-fix/" # AI 创建的分支前缀，方便管理
+          # ----------------
