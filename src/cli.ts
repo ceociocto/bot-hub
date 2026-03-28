@@ -59,6 +59,11 @@ program
     // Load plugins FIRST (agents won't be registered until this runs)
     await registry.loadBuiltInPlugins()
 
+    // Load ACP (remote) agents from config
+    if (config.acpAgents?.length) {
+      await registry.loadACPAgents(config.acpAgents)
+    }
+
     // ============================================
     // ONBOARDING CHECKS (before default fill!)
     // ============================================
@@ -274,6 +279,8 @@ program
       console.log('  codex    - OpenAI Codex CLI agent')
       console.log('  opencode - OpenCode CLI agent')
       console.log('  copilot  - GitHub Copilot CLI agent')
+      console.log('\nRemote Agents:')
+      console.log('  agent    - Add a remote ACP agent')
       console.log('\nUsage: im-hub config <component>')
       return
     }
@@ -512,6 +519,79 @@ program
         config.defaultAgent = 'copilot'
         break
 
+      case 'agent':
+        console.log('🔌 Configuring remote ACP agent...')
+        console.log('This adds a remote agent that speaks the Agent Communication Protocol.')
+        console.log('ACP is an open standard (https://agentcommunicationprotocol.dev)\n')
+
+        const { createInterface: createAgentRl } = await import('readline')
+        const agentRl = createAgentRl({ input: process.stdin, output: process.stdout })
+
+        const agentName = await new Promise<string>((resolve) => {
+          agentRl.question('Agent name (e.g. openclaw-dev): ', (answer) => resolve(answer.trim()))
+        })
+        if (!agentName) { console.log('❌ Name is required'); agentRl.close(); return }
+
+        const agentAlias = await new Promise<string>((resolve) => {
+          agentRl.question('Aliases, comma-separated (optional): ', (answer) => resolve(answer.trim()))
+        })
+
+        const endpoint = await new Promise<string>((resolve) => {
+          agentRl.question('ACP endpoint URL (e.g. http://localhost:8080): ', (answer) => resolve(answer.trim()))
+        })
+        if (!endpoint) { console.log('❌ Endpoint is required'); agentRl.close(); return }
+
+        console.log('\nAuthentication type:')
+        console.log('  1. none')
+        console.log('  2. apikey')
+        console.log('  3. bearer')
+        const authTypeInput = await new Promise<string>((resolve) => {
+          agentRl.question('Choose (1-3, default: none): ', (answer) => resolve(answer.trim() || '1'))
+        })
+        const authTypeMap: Record<string, 'none' | 'apikey' | 'bearer'> = { '1': 'none', '2': 'apikey', '3': 'bearer' }
+        const authType = authTypeMap[authTypeInput] || 'none'
+
+        let auth: { type: 'none' | 'apikey' | 'bearer'; token?: string } | undefined
+        if (authType !== 'none') {
+          const token = await new Promise<string>((resolve) => {
+            agentRl.question('Auth token: ', (answer) => resolve(answer.trim()))
+          })
+          if (!token) { console.log('❌ Token is required when auth is enabled'); agentRl.close(); return }
+          auth = { type: authType, token }
+        }
+        agentRl.close()
+
+        // Validate connection
+        console.log('\n🔍 Testing connection...')
+        const { ACPClient } = await import('./plugins/agents/acp/acp-client.js')
+        const testClient = new ACPClient({ name: agentName, endpoint, auth: auth as any })
+        try {
+          const manifest = await testClient.fetchManifest()
+          console.log(`✅ Connected! Agent: ${manifest.name}`)
+          if (manifest.description) console.log(`   ${manifest.description}`)
+        } catch (e: any) {
+          console.log(`⚠️  Connection failed: ${e.message}`)
+          console.log('   Agent will be saved but may not work until endpoint is available.')
+        }
+
+        // Save
+        if (!config.acpAgents) config.acpAgents = []
+        const existing = config.acpAgents.findIndex(a => a.name === agentName)
+        const agentConfig = {
+          name: agentName,
+          aliases: agentAlias?.split(',').map(s => s.trim()).filter(Boolean) || [],
+          endpoint,
+          auth,
+          enabled: true
+        }
+
+        if (existing >= 0) {
+          config.acpAgents[existing] = agentConfig
+        } else {
+          config.acpAgents.push(agentConfig)
+        }
+        break
+
       default:
         console.log(`Unknown component: ${component}`)
         console.log('Run "im-hub config" to see available components.')
@@ -525,16 +605,45 @@ program
 program
   .command('agents')
   .description('List available agents')
-  .action(() => {
+  .action(async () => {
     const agents = registry.listAgents()
     if (agents.length === 0) {
       console.log('No agents registered yet.')
       console.log('Run "im-hub config claude" to configure Claude Code.')
+      console.log('Run "im-hub config agent" to add a remote ACP agent.')
       return
     }
-    console.log('🤖 Available Agents:\n')
-    for (const name of agents) {
-      console.log(`  ${name}`)
+
+    console.log('🤖 Checking agents...\n')
+
+    // Check all agents in parallel to avoid slow sequential timeouts
+    const results = await Promise.allSettled(
+      agents.map(async (name) => {
+        const agent = registry.getAgent(name)
+        const available = await agent?.isAvailable().catch(() => false)
+
+        // Check if this is an ACP agent with extra info
+        let info = ''
+        try {
+          const { ACPAdapter } = await import('./plugins/agents/acp/acp-adapter.js')
+          if (agent instanceof ACPAdapter) {
+            const manifest = await agent.getManifest().catch(() => undefined)
+            if (manifest) {
+              info = ` — ${manifest.description || 'Remote ACP agent'}`
+            }
+          }
+        } catch { /* not an ACP agent */ }
+
+        return { name, available, aliases: agent?.aliases || [], info }
+      })
+    )
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { name, available, aliases, info } = result.value
+        const aliasStr = aliases.length ? ` (${aliases.join(', ')})` : ''
+        console.log(`  ${available ? '✅' : '❌'} ${name}${aliasStr}${info}`)
+      }
     }
   })
 

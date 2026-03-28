@@ -44,6 +44,13 @@ export interface Config {
   defaultAgent: string
   telegram?: { botToken: string; channelId?: string }
   feishu?: { appId: string; appSecret: string; channelId?: string }
+  acpAgents?: Array<{
+    name: string
+    aliases?: string[]
+    endpoint: string
+    auth?: { type: 'none' | 'apikey' | 'bearer'; token?: string }
+    enabled?: boolean
+  }>
   [key: string]: unknown
 }
 

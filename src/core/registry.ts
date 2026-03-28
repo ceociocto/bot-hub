@@ -1,6 +1,7 @@
 // Plugin registry for messengers and agents
 
 import type { MessengerAdapter, AgentAdapter } from './types.js'
+import type { ACPAgentConfig } from '../plugins/agents/acp/types.js'
 
 /**
  * Global registry for all adapters
@@ -60,6 +61,38 @@ class PluginRegistry {
 
   listAgents(): string[] {
     return Array.from(this.agents.keys())
+  }
+
+  /**
+   * Load ACP (remote) agents from config. Uses Promise.allSettled
+   * for parallel loading so one slow endpoint doesn't block startup.
+   */
+  async loadACPAgents(acpConfigs: ACPAgentConfig[]): Promise<void> {
+    const enabled = acpConfigs.filter((c) => c.enabled !== false)
+    if (enabled.length === 0) return
+
+    const results = await Promise.allSettled(
+      enabled.map(async (cfg) => {
+        const { ACPAdapter } = await import('../plugins/agents/acp/acp-adapter.js')
+        const adapter = new ACPAdapter(cfg)
+
+        const available = await adapter.isAvailable().catch(() => false)
+        if (!available) {
+          console.warn(`⚠️ ACP agent "${cfg.name}" at ${cfg.endpoint} not reachable, skipping`)
+          return
+        }
+
+        this.registerAgent(adapter)
+        console.log(`✅ Loaded ACP agent: ${cfg.name} (${cfg.endpoint})`)
+      })
+    )
+
+    // Report any unexpected errors (not connection failures)
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.warn(`⚠️ Failed to load ACP agent: ${result.reason}`)
+      }
+    }
   }
 
   async loadBuiltInPlugins(): Promise<void> {
