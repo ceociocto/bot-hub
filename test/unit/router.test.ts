@@ -99,6 +99,41 @@ describe('parseMessage', () => {
     })
   })
 
+  describe('agent commands', () => {
+    it('should parse /test as agentCommand', () => {
+      const result = parseMessage('/test run unit tests')
+      expect(result).toEqual({ type: 'agentCommand', command: 'test', prompt: 'run unit tests' })
+    })
+
+    it('should parse agent command without prompt', () => {
+      const result = parseMessage('/review')
+      expect(result).toEqual({ type: 'agentCommand', command: 'review', prompt: '' })
+    })
+
+    it('should parse all supported agent commands', () => {
+      const commands = ['test', 'review', 'commit', 'push', 'diff', 'shell', 'bug', 'explain']
+      for (const cmd of commands) {
+        const result = parseMessage(`/${cmd} some args`)
+        expect(result).toEqual({ type: 'agentCommand', command: cmd, prompt: 'some args' })
+      }
+    })
+
+    it('should route to registered agent instead of generic command when name matches', () => {
+      // Register an agent named "test"
+      const testAgent: AgentAdapter = {
+        name: 'test',
+        aliases: [],
+        isAvailable: vi.fn().mockResolvedValue(true),
+        sendPrompt: vi.fn().mockImplementation(() => mockGenerator()),
+      }
+      registry.registerAgent(testAgent)
+
+      const result = parseMessage('/test something')
+      // Registered agent takes priority over generic agentCommand
+      expect(result).toEqual({ type: 'agent', agent: 'test', prompt: 'something' })
+    })
+  })
+
   describe('error handling', () => {
     it('should return error for unknown command', () => {
       const result = parseMessage('/unknown command')
@@ -207,6 +242,44 @@ describe('routeMessage', () => {
       )
       expect(result).toContain('Unknown command')
       expect(result).toContain('/help')
+    })
+  })
+
+  describe('agent command routing', () => {
+    it('should forward agent command to existing session agent', async () => {
+      const result = await routeMessage(
+        { type: 'agentCommand', command: 'test', prompt: 'run unit tests' },
+        ctx
+      )
+      // Result is an AsyncGenerator
+      expect(typeof result).not.toBe('string')
+      let text = ''
+      for await (const chunk of result as AsyncGenerator<string>) {
+        text += chunk
+      }
+      // Should contain the forwarded command /test run unit tests
+      expect(text).toContain('test response')
+    })
+
+    it('should return error when no agent found for agentCommand', async () => {
+      const result = await routeMessage(
+        { type: 'agentCommand', command: 'test', prompt: '' },
+        { threadId: 'thread-no-agent', platform: 'wechat', defaultAgent: 'nonexistent' }
+      )
+      expect(result).toContain('not found')
+    })
+
+    it('should forward agent command without prompt', async () => {
+      const result = await routeMessage(
+        { type: 'agentCommand', command: 'review', prompt: '' },
+        ctx
+      )
+      expect(typeof result).not.toBe('string')
+      let text = ''
+      for await (const chunk of result as AsyncGenerator<string>) {
+        text += chunk
+      }
+      expect(text).toContain('test response')
     })
   })
 })
