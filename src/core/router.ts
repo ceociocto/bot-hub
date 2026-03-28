@@ -5,6 +5,9 @@ import { registry } from './registry.js'
 import { sessionManager } from './session.js'
 import { isAgentAvailableCached, formatAgentNotAvailableError } from './onboarding.js'
 
+/** Built-in coding agent commands forwarded to the active agent */
+const AGENT_COMMANDS = new Set(['test', 'review', 'commit', 'push', 'diff', 'shell', 'bug', 'explain'])
+
 /**
  * Parse a message to determine how to route it
  *
@@ -35,16 +38,15 @@ export function parseMessage(text: string): ParsedMessage {
   if (cmd === 'agents') return { type: 'command', command: 'agents' }
   if (cmd === 'new') return { type: 'command', command: 'new' }
 
-  // Agent built-in commands
-  const agentCommands = ['test', 'review', 'commit', 'push', 'diff', 'shell', 'bug', 'explain']
-  if (agentCommands.includes(cmd)) {
-    return { type: 'agentCommand', command: cmd, prompt: rest }
-  }
-
-  // Check if it's an agent alias
+  // Check if it's an agent alias (registered agents take priority over generic commands)
   const agent = registry.findAgent(cmd)
   if (agent) {
     return { type: 'agent', agent: agent.name, prompt: rest }
+  }
+
+  // Agent built-in commands (only if no registered agent matches)
+  if (AGENT_COMMANDS.has(cmd)) {
+    return { type: 'agentCommand', command: cmd, prompt: rest }
   }
 
   // Unknown command
