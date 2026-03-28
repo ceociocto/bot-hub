@@ -28,6 +28,7 @@ export interface ChatMessage {
 export type ParsedMessage =
   | { type: 'default'; prompt: string }
   | { type: 'command'; command: 'start' | 'status' | 'help' | 'agents' | 'new' }
+  | { type: 'agentCommand'; command: string; prompt: string }
   | { type: 'agent'; agent: string; prompt: string }
   | { type: 'error'; prompt: string; error: string }
 
