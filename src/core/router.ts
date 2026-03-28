@@ -35,6 +35,12 @@ export function parseMessage(text: string): ParsedMessage {
   if (cmd === 'agents') return { type: 'command', command: 'agents' }
   if (cmd === 'new') return { type: 'command', command: 'new' }
 
+  // Agent built-in commands
+  const agentCommands = ['test', 'review', 'commit', 'push', 'diff', 'shell', 'bug', 'explain']
+  if (agentCommands.includes(cmd)) {
+    return { type: 'agentCommand', command: cmd, prompt: rest }
+  }
+
   // Check if it's an agent alias
   const agent = registry.findAgent(cmd)
   if (agent) {
@@ -56,6 +62,10 @@ export async function routeMessage(
   switch (parsed.type) {
     case 'command': {
       return handleBuiltInCommand(parsed.command, ctx)
+    }
+
+    case 'agentCommand': {
+      return handleAgentCommand(parsed.command, parsed.prompt, ctx)
     }
 
     case 'agent': {
@@ -177,14 +187,14 @@ async function handleBuiltInCommand(
       return `📊 IM hub Status\n\nPlatform: Connected\nAgent: Ready\n\nSend a message to start!`
 
     case 'help':
-      return `📖 IM hub Commands\n\n/agents - List available agents\n/new - Start a new conversation (clear history)\n/status - Show connection status\n/&lt;agent&gt; &lt;prompt&gt; - Switch to agent and send prompt\n\nExample: /claude explain this code`
+      return `📖 IM hub Commands\n\nBuilt-in Commands:\n/agents - List available agents\n/new - Start a new conversation (clear history)\n/status - Show connection status\n/<agent> <prompt> - Switch to agent and send prompt\n\nAgent Commands:\n/test - Run tests\n/review - Code review\n/commit - Commit changes\n/push - Push to remote\n/diff - Show changes\n/shell - Execute shell commands\n/bug - Find and fix bugs\n/explain - Explain code\n\nExample: /claude explain this code`
 
     case 'agents':
       const agents = registry.listAgents()
       if (agents.length === 0) {
         return '⚠️ No agents registered yet.'
       }
-      return `🤖 Available Agents\n\n${agents.map(a => `• ${a}`).join('\n')}\n\nUse /&lt;agent&gt; to switch.`
+      return `🤖 Available Agents\n\n${agents.map(a => `• ${a}`).join('\n')}\n\nUse /<agent> to switch.`
 
     case 'new':
       const session = await sessionManager.resetConversation(ctx.platform, ctx.channelId, ctx.threadId)
@@ -193,4 +203,32 @@ async function handleBuiltInCommand(
       }
       return `🆕 Ready to start a new conversation.\n\nSend a message to begin.`
   }
+}
+
+async function handleAgentCommand(
+  command: string,
+  prompt: string,
+  ctx: { channelId: string; threadId: string; platform: string; defaultAgent: string }
+): Promise<string | AsyncGenerator<string>> {
+  const existingSession = await sessionManager.getExistingSession(ctx.platform, ctx.channelId, ctx.threadId)
+  const agentName = existingSession?.agent || ctx.defaultAgent
+
+  const agent = registry.findAgent(agentName)
+  if (!agent) {
+    return `❌ Agent "${agentName}" not found. Use /agents to see available agents.`
+  }
+
+  if (!(await isAgentAvailableCached(agent.name))) {
+    return formatAgentNotAvailableError(agent.name)
+  }
+
+  const fullPrompt = `/${command} ${prompt}`.trim()
+
+  const session = await sessionManager.getOrCreateSession(
+    ctx.platform,
+    ctx.channelId,
+    ctx.threadId,
+    agent.name
+  )
+  return callAgentWithHistory(agent, session.id, fullPrompt, session.messages, ctx)
 }
