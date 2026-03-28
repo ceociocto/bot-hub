@@ -388,7 +388,6 @@ program
 
         const token = await new Promise<string>((resolve) => {
           rl.question('Enter your bot token: ', (answer) => {
-            rl.close()
             resolve(answer.trim())
           })
         })
@@ -403,6 +402,8 @@ program
             resolve(answer.trim() || 'default')
           })
         })
+
+        rl.close()
 
         config.telegram = { botToken: token, channelId }
         if (!config.messengers.includes('telegram')) {
