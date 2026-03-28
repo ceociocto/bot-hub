@@ -1,6 +1,8 @@
 # im-hub
 
-**Universal messenger-to-agent bridge** — connect WeChat/Feishu/Telegram to Claude Code/Codex/Copilot/OpenCode.
+[中文文档](README.zh-CN.md)
+
+**Universal messenger-to-agent bridge** — connect WeChat/Feishu/Telegram to Claude Code/Codex/Copilot/OpenCode, **or any custom agent via ACP**.
 
 <p align="center">
   <img src="assets/banner.jpg" alt="im-hub banner" width="800">
@@ -38,6 +40,7 @@ im-hub start           # Start the bridge
 ## Features
 
 - **Universal multiplexer** — one instance, multiple messengers, multiple agents
+- **Custom agent support** — connect *any* agent via [ACP](https://agentcommunicationprotocol.dev) with `im-hub config agent`
 - **Plugin architecture** — easy to add new messengers/agents
 - **TypeScript native** — no Go/Docker required
 - **JSONL streaming** — real-time agent responses
@@ -81,13 +84,32 @@ Feishu uses WebSocket long polling mode, which means:
 
 Just configure your App ID and App Secret, then start the bridge. The bot will automatically connect to Feishu servers via WebSocket.
 
+### Connect Your Own Agent
+
+im-hub speaks **ACP (Agent Communication Protocol)**, so you can plug in any agent that exposes a standard HTTP endpoint — your own business bots, internal tools, cloud services, anything.
+
+```bash
+im-hub config agent
+# Interactive setup: name, endpoint URL, auth (none / Bearer / API key)
+# Connection is validated automatically
+```
+
+After setup, chat with it the same way as built-in agents:
+
+```
+/myagent analyze the Q1 sales report    # Switch to your custom agent
+```
+
 ## Commands
 
 ```
 im-hub                 # Same as 'start'
 im-hub start           # Start the bridge
 im-hub config wechat   # Configure WeChat
+im-hub config feishu   # Configure Feishu
+im-hub config telegram # Configure Telegram
 im-hub config claude   # Configure Claude Code
+im-hub config agent    # Connect a custom ACP agent
 im-hub agents          # List available agents
 im-hub messengers      # List available messengers
 im-hub help
@@ -121,13 +143,14 @@ hello                  # Send to default agent (context preserved)
 └─────────────────────────────────────────────────────────────┘
          │                        │
          ▼                        ▼
-┌─────────────────┐      ┌─────────────────┐
-│ Messenger Plugins│      │  Agent Plugins  │
-│ • wechat         │      │ • claude-code    │
-│ • feishu ✓        │      │ • codex          │
-│ • telegram ✓      │      │ • copilot        │
-│                  │      │ • opencode       │
-└─────────────────┘      └─────────────────┘
+┌─────────────────┐      ┌─────────────────────┐
+│ Messenger Plugins│      │  Agent Plugins      │
+│ • wechat         │      │ • claude-code        │
+│ • feishu ✓        │      │ • codex              │
+│ • telegram ✓      │      │ • copilot            │
+│                  │      │ • opencode           │
+│                  │      │ • your-agent (ACP) ✨ │
+└─────────────────┘      └─────────────────────┘
 ```
 
 ## Project Structure
@@ -163,7 +186,16 @@ Config file: `~/.im-hub/config.json`
 {
   "messengers": ["wechat"],
   "agents": ["claude-code"],
-  "defaultAgent": "claude-code"
+  "defaultAgent": "claude-code",
+  "acpAgents": [
+    {
+      "name": "my-agent",
+      "aliases": ["ma"],
+      "endpoint": "https://api.example.com",
+      "auth": { "type": "bearer", "token": "***" },
+      "enabled": true
+    }
+  ]
 }
 ```
 
@@ -206,6 +238,7 @@ npm start
 - [x] Feishu adapter
 - [x] Telegram adapter
 - [x] Session persistence with conversation history
+- [x] ACP custom agent support
 
 ### v0.3.0
 - [ ] DingTalk adapter
