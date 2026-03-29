@@ -20,6 +20,7 @@ import {
   saveConfig as saveOnboardingConfig,
   type Config as OnboardingConfig,
 } from './core/onboarding.js'
+import { startWebServer } from './web/server.js'
 
 // Helper to format agent install hint for missing agents
 function formatMissingAgentHint(missing: string[]): string {
@@ -137,13 +138,32 @@ program
       }
     }
 
+    // ============================================
+    // START WEB CHAT SERVER
+    // ============================================
+
+    let webServer: { close: () => void; port: number } | undefined
+    try {
+      webServer = await startWebServer({
+        port: config.webPort as number | undefined,
+        defaultAgent: config.defaultAgent,
+      })
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.warn(`⚠️ Web chat server failed to start: ${errMsg}`)
+    }
+
     console.log('\n✅ IM hub is running!')
+    if (webServer) {
+      console.log(`   Chat UI: http://localhost:${webServer.port}`)
+    }
     console.log('Press Ctrl+C to stop')
 
     // Keep process alive
     process.on('SIGINT', async () => {
       console.log('\n👋 Shutting down...')
       sessionManager.stop()
+      webServer?.close()
 
       // Stop all messengers
       for (const name of registry.listMessengers()) {

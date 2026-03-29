@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>im-hub — Agent Chat</title>
+  <script>
+    // i18n — detect browser language, store preference in localStorage
+    const LANGS = { en: 'English', zh: '中文' };
+    const savedLang = localStorage.getItem('im-hub-lang');
+    const browserLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+    window.__lang = savedLang && LANGS[savedLang] ? savedLang : browserLang;
+    document.documentElement.lang = window.__lang === 'zh' ? 'zh-CN' : 'en';
+
+    const T = {
+      en: {
+        title: 'im-hub — Agent Chat',
+        connecting: 'Connecting...',
+        connected: 'Connected',
+        disconnected: 'Disconnected',
+        connError: 'Connection error',
+        loadingAgents: 'Loading agents...',
+        newChat: 'New Chat',
+        welcomeTitle: 'im-hub Agent Chat',
+        welcomeDesc: 'Select an agent and start chatting. Your locally installed AI coding agents are ready.',
+        inputPlaceholder: 'Type a message... (Enter to send, Shift+Enter for newline)',
+        send: 'Send',
+        you: 'You',
+        assistant: 'Assistant',
+      },
+      zh: {
+        title: 'im-hub — Agent 对话',
+        connecting: '连接中...',
+        connected: '已连接',
+        disconnected: '已断开',
+        connError: '连接错误',
+        loadingAgents: '加载 Agent...',
+        newChat: '新对话',
+        welcomeTitle: 'im-hub Agent 对话',
+        welcomeDesc: '选择一个 Agent 开始对话，本地安装的 AI 编程助手已就绪。',
+        inputPlaceholder: '输入消息...（Enter 发送，Shift+Enter 换行）',
+        send: '发送',
+        you: '你',
+        assistant: '助手',
+      },
+    };
+    function t(key) { return T[window.__lang][key] || T.en[key] || key; }
+    document.addEventListener('DOMContentLoaded', () => { document.title = t('title'); });
+  </script>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1e1e1e;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-dim: #888;
+      --accent: #6366f1;
+      --accent-dim: #4f46e5;
+      --user-bg: #1a1a2e;
+      --assistant-bg: #1e1e1e;
+      --code-bg: #0d0d0d;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--yellow);
+      display: inline-block;
+    }
+    .status-dot.connected { background: var(--green); }
+    .status-dot.disconnected { background: var(--red); }
+    .status-text { font-size: 12px; color: var(--text-dim); }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    /* Agent selector */
+    .agent-select {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+    }
+    .agent-select:focus { border-color: var(--accent); }
+
+    .btn {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn:hover { color: var(--text); border-color: var(--text-dim); }
+
+    /* Language selector */
+    .lang-select {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+    }
+    .lang-select:hover { color: var(--text); }
+
+    /* Messages */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: var(--user-bg);
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant {
+      align-self: flex-start;
+      background: var(--assistant-bg);
+      border-bottom-left-radius: 4px;
+    }
+    .message.assistant code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+    }
+    .message.assistant pre {
+      background: var(--code-bg);
+      padding: 12px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .message.assistant pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .message-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    /* Typing indicator */
+    .typing {
+      align-self: flex-start;
+      padding: 12px 16px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+    .typing span {
+      animation: blink 1.4s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 60%, 100% { opacity: 0.2; }
+      30% { opacity: 1; }
+    }
+
+    /* Welcome screen */
+    .welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: var(--text-dim);
+    }
+    .welcome h2 { color: var(--text); font-size: 20px; }
+    .welcome p { font-size: 14px; max-width: 400px; text-align: center; }
+
+    /* Input area */
+    .input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .input-wrapper textarea {
+      flex: 1;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      max-height: 150px;
+      min-height: 42px;
+    }
+    .input-wrapper textarea:focus { border-color: var(--accent); }
+    .input-wrapper textarea::placeholder { color: var(--text-dim); }
+
+    .send-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .send-btn:hover { background: var(--accent-dim); }
+    .send-btn:disabled {
+      background: var(--surface2);
+      color: var(--text-dim);
+      cursor: not-allowed;
+    }
+
+    /* Scrollbar */
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <span class="logo">im-hub</span>
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText"></span>
+    </div>
+    <div class="header-right">
+      <select class="lang-select" id="langSelect">
+        <option value="en">EN</option>
+        <option value="zh">中文</option>
+      </select>
+      <select class="agent-select" id="agentSelect" disabled>
+        <option value=""></option>
+      </select>
+      <button class="btn" id="newChatBtn"></button>
+      <a class="btn" href="/settings" title="Settings" style="text-decoration:none;font-size:16px;line-height:1">&#9881;</a>
+    </div>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="welcome" id="welcome">
+      <h2 id="welcomeTitle"></h2>
+      <p id="welcomeDesc"></p>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea
+        id="input"
+        rows="1"
+        disabled
+      ></textarea>
+      <button class="send-btn" id="sendBtn" disabled></button>
+    </div>
+  </div>
+
+  <script>
+    // Apply i18n to static elements
+    function applyLang() {
+      document.title = t('title');
+      document.documentElement.lang = window.__lang === 'zh' ? 'zh-CN' : 'en';
+      statusText.textContent = statusText.dataset.state ? t(statusText.dataset.state) : t('connecting');
+      const opt = agentSelect.querySelector('option[value=""]');
+      if (opt) opt.textContent = t('loadingAgents');
+      newChatBtn.textContent = t('newChat');
+      inputEl.placeholder = t('inputPlaceholder');
+      sendBtn.textContent = t('send');
+      const wt = document.getElementById('welcomeTitle');
+      const wd = document.getElementById('welcomeDesc');
+      if (wt) wt.textContent = t('welcomeTitle');
+      if (wd) wd.textContent = t('welcomeDesc');
+    }
+
+    // State
+    let ws = null;
+    let currentAgent = '';
+    let isStreaming = false;
+    let streamingEl = null;
+    let streamingText = '';
+    let reconnectTimer = null;
+
+    // DOM
+    const messagesEl = document.getElementById('messages');
+    const welcomeEl = document.getElementById('welcome');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const agentSelect = document.getElementById('agentSelect');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const newChatBtn = document.getElementById('newChatBtn');
+    const langSelect = document.getElementById('langSelect');
+
+    // Language selector
+    langSelect.value = window.__lang;
+    langSelect.addEventListener('change', () => {
+      window.__lang = langSelect.value;
+      localStorage.setItem('im-hub-lang', window.__lang);
+      applyLang();
+    });
+
+    // Connect
+    function connect() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}`);
+
+      ws.onopen = () => {
+        setStatus('connected', t('connected'));
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+      };
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        handleMessage(msg);
+      };
+
+      ws.onclose = () => {
+        setStatus('disconnected', t('disconnected'));
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+        reconnectTimer = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        setStatus('disconnected', t('connError'));
+      };
+    }
+
+    // Handle server messages
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'init':
+          agentSelect.innerHTML = '';
+          msg.agents.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            if (name === msg.defaultAgent) opt.selected = true;
+            agentSelect.appendChild(opt);
+          });
+          agentSelect.disabled = false;
+          currentAgent = msg.defaultAgent;
+          break;
+
+        case 'history':
+          hideWelcome();
+          if (msg.agent) {
+            currentAgent = msg.agent;
+            agentSelect.value = msg.agent;
+          }
+          msg.messages.forEach(m => {
+            addMessage(m.role, m.content, false);
+          });
+          scrollToBottom();
+          break;
+
+        case 'agents':
+          agentSelect.innerHTML = '';
+          msg.agents.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            if (name === currentAgent) opt.selected = true;
+            agentSelect.appendChild(opt);
+          });
+          agentSelect.disabled = false;
+          break;
+
+        case 'chunk':
+          if (!isStreaming) {
+            hideWelcome();
+            startStreaming();
+          }
+          streamingText += msg.text;
+          updateStreamingEl();
+          scrollToBottom();
+          break;
+
+        case 'done':
+          if (isStreaming) {
+            finishStreaming();
+          } else if (msg.text) {
+            hideWelcome();
+            addMessage('assistant', msg.text);
+            scrollToBottom();
+          }
+          break;
+
+        case 'error':
+          if (isStreaming) finishStreaming();
+          addMessage('assistant', '\u274c ' + msg.message);
+          scrollToBottom();
+          break;
+
+        case 'agent-switched':
+          currentAgent = msg.agent;
+          agentSelect.value = msg.agent;
+          break;
+      }
+    }
+
+    // Send message
+    function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text || !ws || ws.readyState !== ws.OPEN) return;
+
+      hideWelcome();
+      addMessage('user', text);
+
+      ws.send(JSON.stringify({
+        type: 'message',
+        text,
+        agent: currentAgent,
+      }));
+
+      inputEl.value = '';
+      autoResize();
+    }
+
+    // Streaming helpers
+    function startStreaming() {
+      isStreaming = true;
+      streamingText = '';
+
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = `<div class="message-label">${t('assistant')}</div>`;
+      streamingEl = document.createElement('div');
+      streamingEl.className = 'message assistant';
+      wrapper.appendChild(streamingEl);
+      messagesEl.appendChild(wrapper);
+    }
+
+    function updateStreamingEl() {
+      if (!streamingEl) return;
+      streamingEl.textContent = streamingText;
+    }
+
+    function finishStreaming() {
+      isStreaming = false;
+      if (streamingEl) {
+        streamingEl.innerHTML = renderMarkdown(streamingText);
+      }
+      streamingEl = null;
+      saveHistory();
+    }
+
+    // Message helpers
+    function addMessage(role, content, save = true) {
+      hideWelcome();
+
+      const wrapper = document.createElement('div');
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = role === 'user' ? t('you') : t('assistant');
+
+      const el = document.createElement('div');
+      el.className = `message ${role}`;
+
+      if (role === 'assistant') {
+        el.innerHTML = renderMarkdown(content);
+      } else {
+        el.textContent = content;
+      }
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(el);
+      messagesEl.appendChild(wrapper);
+
+      if (save) saveHistory();
+    }
+
+    // Basic markdown rendering
+    function renderMarkdown(text) {
+      if (!text) return '';
+      let html = escapeHtml(text);
+
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+        return `<pre><code>${code.trim()}</code></pre>`;
+      });
+
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+
+      return html;
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function hideWelcome() {
+      if (welcomeEl) welcomeEl.remove();
+    }
+
+    function scrollToBottom() {
+      requestAnimationFrame(() => {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      });
+    }
+
+    // Status
+    function setStatus(state, text) {
+      statusDot.className = `status-dot ${state}`;
+      statusText.textContent = text;
+      statusText.dataset.state = state === 'connected' ? 'connected' : state === 'disconnected' ? 'disconnected' : 'connecting';
+    }
+
+    // LocalStorage persistence
+    function saveHistory() {
+      const msgs = [];
+      messagesEl.querySelectorAll('.message').forEach(el => {
+        const role = el.classList.contains('user') ? 'user' : 'assistant';
+        msgs.push({ role, content: el.textContent });
+      });
+      try {
+        localStorage.setItem('im-hub-history', JSON.stringify(msgs));
+      } catch {}
+    }
+
+    function loadHistory() {
+      try {
+        const saved = localStorage.getItem('im-hub-history');
+        if (saved) {
+          const msgs = JSON.parse(saved);
+          if (msgs.length > 0) {
+            hideWelcome();
+            msgs.forEach(m => addMessage(m.role, m.content, false));
+            scrollToBottom();
+          }
+        }
+      } catch {}
+    }
+
+    // Auto-resize textarea
+    function autoResize() {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 150) + 'px';
+    }
+
+    // Event listeners
+    inputEl.addEventListener('input', autoResize);
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    agentSelect.addEventListener('change', () => {
+      const agent = agentSelect.value;
+      if (agent && agent !== currentAgent && ws?.readyState === WebSocket.OPEN) {
+        currentAgent = agent;
+        ws.send(JSON.stringify({ type: 'switch-agent', agent }));
+      }
+    });
+
+    newChatBtn.addEventListener('click', () => {
+      messagesEl.innerHTML = '';
+      localStorage.removeItem('im-hub-history');
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'message', text: '/new' }));
+      }
+    });
+
+    // Init
+    applyLang();
+    loadHistory();
+    connect();
+  </script>
+</body>
+</html>

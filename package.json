@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && rm -rf dist/web/public && cp -r src/web/public dist/web/public",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "test": "echo \"No tests yet\"",
@@ -41,12 +41,14 @@
     "@larksuiteoapi/node-sdk": "^1.59.0",
     "commander": "^11.0.0",
     "grammy": "^1.41.1",
-    "marked": "^17.0.5"
+    "marked": "^17.0.5",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
     "@types/marked": "^5.0.2",
     "@types/node": "^20.0.0",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.0.0"
   },
   "engines": {

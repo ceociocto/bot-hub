@@ -37,6 +37,20 @@ im-hub config wechat   # 扫码登录微信
 im-hub start           # 启动桥接
 ```
 
+## Web 对话
+
+im-hub 内置 Web 界面，可直接在浏览器中与 Agent 对话。
+
+```
+im-hub start           # 启动后访问 http://localhost:3000
+```
+
+功能：
+- 通过 WebSocket 实时流式响应
+- Agent 切换与对话历史
+- 设置页面管理 Agent、消息通道和 ACP 连接
+- 双语界面（中文 / English）——自动检测浏览器语言
+
 ## 核心特性
 
 - **多路复用** — 一个实例，同时对接多个 IM 和多个 Agent
@@ -171,7 +185,12 @@ im-hub/
 │   │       ├── copilot/          # Copilot 适配器
 │   │       └── opencode/         # OpenCode 适配器
 │   ├── index.ts                  # 主入口
-│   └── cli.ts                    # CLI 命令
+│   ├── cli.ts                    # CLI 命令
+│   └── web/
+│       ├── server.ts             # Web 对话 HTTP + WebSocket 服务
+│       └── public/
+│           ├── index.html         # 对话界面（双语）
+│           └── settings.html      # 设置界面（双语）
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -238,6 +257,11 @@ npm start
 - [x] Telegram 适配器
 - [x] 会话持久化与对话历史
 - [x] ACP 自定义 Agent 接入
+
+### v0.2.x
+- [x] Web 对话界面 —— 浏览器端 Agent 对话，支持流式响应
+- [x] 设置页面 —— 在浏览器中配置 Agent、消息通道和 ACP
+- [x] 双语界面 —— 中英文自动检测浏览器语言
 
 ### v0.3.0
 - [ ] 钉钉适配器

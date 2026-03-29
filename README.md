@@ -37,6 +37,20 @@ im-hub config wechat   # Scan QR to login
 im-hub start           # Start the bridge
 ```
 
+## Web Chat
+
+im-hub includes a built-in web interface for chatting with your agents directly from the browser.
+
+```
+im-hub start           # Starts web UI at http://localhost:3000
+```
+
+Features:
+- Real-time streaming responses via WebSocket
+- Agent switching and chat history
+- Settings page for managing agents, messengers, and ACP connections
+- Bilingual UI (English / Chinese) — auto-detects your browser language
+
 ## Features
 
 - **Universal multiplexer** — one instance, multiple messengers, multiple agents
@@ -172,7 +186,12 @@ im-hub/
 │   │       ├── copilot/          # GitHub Copilot adapter
 │   │       └── opencode/         # OpenCode adapter
 │   ├── index.ts                  # Main entry
-│   └── cli.ts                    # CLI commands
+│   ├── cli.ts                    # CLI commands
+│   └── web/
+│       ├── server.ts             # Web chat HTTP + WebSocket server
+│       └── public/
+│           ├── index.html         # Chat UI (bilingual)
+│           └── settings.html      # Settings UI (bilingual)
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -239,6 +258,11 @@ npm start
 - [x] Telegram adapter
 - [x] Session persistence with conversation history
 - [x] ACP custom agent support
+
+### v0.2.x
+- [x] Web Chat UI — browser-based agent chat with streaming responses
+- [x] Settings page — configure agents, messengers, and ACP from the browser
+- [x] Bilingual UI — English/Chinese with automatic browser language detection
 
 ### v0.3.0
 - [ ] DingTalk adapter

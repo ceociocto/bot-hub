@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>im-hub — Settings</title>
+  <script>
+    const LANGS = { en: 'English', zh: '中文' };
+    const savedLang = localStorage.getItem('im-hub-lang');
+    const browserLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+    window.__lang = savedLang && LANGS[savedLang] ? savedLang : browserLang;
+    document.documentElement.lang = window.__lang === 'zh' ? 'zh-CN' : 'en';
+
+    const T = {
+      en: {
+        title: 'im-hub — Settings',
+        backToChat: 'Back to Chat',
+        settingsTitle: 'im-hub Settings',
+        loading: 'Loading configuration...',
+        loadFailed: 'Failed to load config',
+        h1: 'Settings',
+        agents: 'Agents',
+        defaultAgent: 'Default Agent',
+        saveAgents: 'Save Agents',
+        messengers: 'Messengers (Channels)',
+        wechat: 'WeChat',
+        wechatHint: 'iLink QR scan login',
+        wechatBox: 'WeChat requires QR scan login. Run <code>im-hub config wechat</code> in terminal to set up.',
+        telegram: 'Telegram',
+        telegramHint: 'Bot token from @BotFather',
+        botToken: 'Bot Token',
+        channelId: 'Channel ID',
+        feishu: 'Feishu / Lark',
+        feishuHint: 'App ID and App Secret',
+        appId: 'App ID',
+        appSecret: 'App Secret',
+        saveMessengers: 'Save Messengers',
+        acpTitle: 'Remote Agents (ACP)',
+        acpNone: 'No remote agents configured',
+        name: 'Name',
+        endpoint: 'Endpoint',
+        auth: 'Auth',
+        enabled: 'Enabled',
+        test: 'Test',
+        del: 'Del',
+        addAgent: 'Add Remote Agent',
+        aliases: 'Aliases (comma-separated)',
+        endpointUrl: 'Endpoint URL',
+        authType: 'Auth Type',
+        none: 'None',
+        apikey: 'API Key',
+        bearer: 'Bearer Token',
+        token: 'Token',
+        testConn: 'Test Connection',
+        add: 'Add Agent',
+        general: 'General',
+        webPort: 'Web Chat Port',
+        save: 'Save',
+        saved: 'Saved',
+        testing: 'Testing...',
+        connected: 'Connected',
+        failed: 'Failed',
+        error: 'Error',
+        savedMsg: 'Saved',
+        saveFailed: 'Save failed',
+        enterEndpoint: 'Enter an endpoint URL',
+        nameRequired: 'Agent name is required',
+        endpointRequired: 'Endpoint URL is required',
+        installHint: 'npm i -g',
+      },
+      zh: {
+        title: 'im-hub — 设置',
+        backToChat: '返回对话',
+        settingsTitle: 'im-hub 设置',
+        loading: '加载配置中...',
+        loadFailed: '加载配置失败',
+        h1: '设置',
+        agents: 'Agent',
+        defaultAgent: '默认 Agent',
+        saveAgents: '保存 Agent',
+        messengers: '消息通道 (Channels)',
+        wechat: '微信',
+        wechatHint: 'iLink 扫码登录',
+        wechatBox: '微信需要扫码登录。在终端运行 <code>im-hub config wechat</code> 进行配置。',
+        telegram: 'Telegram',
+        telegramHint: '从 @BotFather 获取 Bot Token',
+        botToken: 'Bot Token',
+        channelId: '频道 ID',
+        feishu: '飞书 / Lark',
+        feishuHint: 'App ID 和 App Secret',
+        appId: 'App ID',
+        appSecret: 'App Secret',
+        saveMessengers: '保存通道',
+        acpTitle: '远程 Agent (ACP)',
+        acpNone: '暂无远程 Agent',
+        name: '名称',
+        endpoint: '端点',
+        auth: '认证',
+        enabled: '启用',
+        test: '测试',
+        del: '删除',
+        addAgent: '添加远程 Agent',
+        aliases: '别名（逗号分隔）',
+        endpointUrl: '端点 URL',
+        authType: '认证方式',
+        none: '无',
+        apikey: 'API Key',
+        bearer: 'Bearer Token',
+        token: '令牌',
+        testConn: '测试连接',
+        add: '添加 Agent',
+        general: '通用',
+        webPort: 'Web 对话端口',
+        save: '保存',
+        saved: '已保存',
+        testing: '测试中...',
+        connected: '已连接',
+        failed: '失败',
+        error: '错误',
+        savedMsg: '已保存',
+        saveFailed: '保存失败',
+        enterEndpoint: '请输入端点 URL',
+        nameRequired: 'Agent 名称为必填项',
+        endpointRequired: '端点 URL 为必填项',
+        installHint: '安装命令：npm i -g',
+      },
+    };
+    function t(key) { return T[window.__lang][key] || T.en[key] || key; }
+    document.addEventListener('DOMContentLoaded', () => { document.title = t('title'); });
+  </script>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1e1e1e;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-dim: #888;
+      --accent: #6366f1;
+      --accent-dim: #4f46e5;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --radius: 8px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .header a { color: var(--accent); text-decoration: none; font-size: 13px; }
+    .header a:hover { text-decoration: underline; }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .container h1 { font-size: 22px; margin-bottom: 24px; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 15px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h2 .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--surface2);
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    /* Form elements */
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+    input::placeholder { color: #555; }
+
+    .row {
+      display: flex;
+      gap: 12px;
+    }
+    .row > * { flex: 1; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .btn:hover { border-color: var(--text-dim); }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-danger { color: var(--red); }
+    .btn-danger:hover { background: #1a0a0a; border-color: var(--red); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+
+    /* Status dots */
+    .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-on { background: var(--green); }
+    .dot-off { background: var(--red); }
+
+    /* Agent list */
+    .agent-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .agent-row:last-child { border-bottom: none; }
+    .agent-row .left { display: flex; align-items: center; gap: 10px; }
+    .agent-row .name { font-weight: 600; font-size: 14px; }
+    .agent-row .hint { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .agent-row .aliases { font-size: 11px; color: var(--text-dim); }
+
+    /* ACP table */
+    .acp-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    .acp-table th {
+      text-align: left;
+      font-size: 11px;
+      color: var(--text-dim);
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .acp-table td {
+      padding: 8px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .acp-table tr:last-child td { border-bottom: none; }
+
+    /* Toggle */
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle.active { background: var(--green); }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle.active::after { transform: translateX(16px); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: #0a2a0a; border: 1px solid var(--green); color: var(--green); }
+    .toast.error { background: #2a0a0a; border: 1px solid var(--red); color: var(--red); }
+
+    /* Section hint */
+    .hint-box {
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .hint-box code {
+      background: var(--bg);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: 'SF Mono', monospace;
+      font-size: 11px;
+    }
+
+    /* Divider */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/" id="backToChat"></a>
+    <span style="font-weight:600; font-size:15px; color:var(--accent)" id="settingsTitle"></span>
+    <select id="langSelect" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;cursor:pointer;outline:none">
+      <option value="en">EN</option>
+      <option value="zh">中文</option>
+    </select>
+  </div>
+
+  <div class="container" id="app">
+    <div class="loading">Loading configuration...</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Apply i18n to static elements
+    function applyLang() {
+      document.title = t('title');
+      document.documentElement.lang = window.__lang === 'zh' ? 'zh-CN' : 'en';
+      document.getElementById('backToChat').textContent = t('backToChat');
+      document.getElementById('settingsTitle').textContent = t('settingsTitle');
+    }
+
+    // Language selector
+    const langSelect = document.getElementById('langSelect');
+    langSelect.value = window.__lang;
+    langSelect.addEventListener('change', () => {
+      window.__lang = langSelect.value;
+      localStorage.setItem('im-hub-lang', window.__lang);
+      applyLang();
+      render();
+    });
+
+    // State
+    let config = null;
+    let agentStatus = {};
+
+    // DOM
+    const app = document.getElementById('app');
+    const toastEl = document.getElementById('toast');
+
+    // Known built-in agents with install info
+    const BUILTIN_AGENTS = {
+      'claude-code': { aliases: ['cc', 'claude'], pkg: '@anthropic-ai/claude-code', cmd: 'claude' },
+      'codex': { aliases: ['cx'], pkg: '@openai/codex', cmd: 'codex' },
+      'copilot': { aliases: ['co'], pkg: '@github/copilot', cmd: 'copilot' },
+      'opencode': { aliases: ['oc'], pkg: 'opencode-ai', cmd: 'opencode' },
+    };
+
+    // Fetch config on load
+    async function init() {
+      try {
+        const res = await fetch('/api/config');
+        if (!res.ok) throw new Error(t('loadFailed'));
+        const data = await res.json();
+        config = data;
+        agentStatus = data.agentStatus || {};
+        render();
+      } catch (err) {
+        app.innerHTML = `<div class="loading" style="color:var(--red)">${t('loadFailed')}: ${err.message}</div>`;
+      }
+    }
+
+    function render() {
+      app.innerHTML = `
+        <h1>${t('h1')}</h1>
+        ${renderAgentsCard()}
+        ${renderMessengersCard()}
+        ${renderAcpCard()}
+        ${renderGeneralCard()}
+      `;
+      bindEvents();
+    }
+
+    // ==========================================
+    // Agents card
+    // ==========================================
+    function renderAgentsCard() {
+      const agents = Object.keys(BUILTIN_AGENTS);
+      const enabledAgents = config.agents || [];
+      const defaultAgent = config.defaultAgent || 'claude-code';
+
+      const rows = agents.map(name => {
+        const info = BUILTIN_AGENTS[name];
+        const available = agentStatus[name];
+        const enabled = enabledAgents.includes(name);
+
+        return `
+          <div class="agent-row" data-agent="${name}">
+            <div class="left">
+              <span class="dot ${available ? 'dot-on' : 'dot-off'}"></span>
+              <div>
+                <div class="name">${name}</div>
+                <div class="aliases">${info.aliases.map(a => '/' + a).join(', ')}</div>
+                ${!available ? `<div class="hint">${t('installHint')} ${info.pkg}</div>` : ''}
+              </div>
+            </div>
+            <div class="toggle ${enabled ? 'active' : ''}" data-toggle-agent="${name}"></div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="card">
+          <h2>${t('agents')} <span class="badge">${agents.length}</span></h2>
+          ${rows}
+          <hr class="divider">
+          <label>${t('defaultAgent')}</label>
+          <select id="defaultAgent">
+            ${agents.filter(a => agentStatus[a]).map(a =>
+              `<option value="${a}" ${a === defaultAgent ? 'selected' : ''}>${a}</option>`
+            ).join('')}
+          </select>
+          <div class="actions">
+            <button class="btn btn-primary" id="saveAgents">${t('saveAgents')}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // Messengers card
+    // ==========================================
+    function renderMessengersCard() {
+      const messengers = config.messengers || [];
+      const tg = config.telegram || {};
+      const fs = config.feishu || {};
+
+      const wechatEnabled = messengers.includes('wechat-ilink');
+      const telegramEnabled = messengers.includes('telegram');
+      const feishuEnabled = messengers.includes('feishu');
+
+      return `
+        <div class="card">
+          <h2>${t('messengers')} <span class="badge">${messengers.length}</span></h2>
+
+          <!-- WeChat -->
+          <div style="margin-bottom:16px">
+            <div class="agent-row">
+              <div class="left">
+                <div>
+                  <div class="name">${t('wechat')}</div>
+                  <div class="hint">${t('wechatHint')}</div>
+                </div>
+              </div>
+              <div class="toggle ${wechatEnabled ? 'active' : ''}" data-toggle-messenger="wechat-ilink"></div>
+            </div>
+            ${wechatEnabled ? `<div class="hint-box">${t('wechatBox')}</div>` : ''}
+          </div>
+
+          <!-- Telegram -->
+          <div style="margin-bottom:16px">
+            <div class="agent-row">
+              <div class="left">
+                <div>
+                  <div class="name">${t('telegram')}</div>
+                  <div class="hint">${t('telegramHint')}</div>
+                </div>
+              </div>
+              <div class="toggle ${telegramEnabled ? 'active' : ''}" data-toggle-messenger="telegram"></div>
+            </div>
+            ${telegramEnabled ? `
+              <div class="row">
+                <div>
+                  <label>${t('botToken')}</label>
+                  <input type="password" id="tgToken" value="${tg.botToken || ''}" placeholder="123456:ABC-DEF...">
+                </div>
+                <div>
+                  <label>${t('channelId')}</label>
+                  <input type="text" id="tgChannel" value="${tg.channelId || ''}" placeholder="default">
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Feishu -->
+          <div>
+            <div class="agent-row">
+              <div class="left">
+                <div>
+                  <div class="name">${t('feishu')}</div>
+                  <div class="hint">${t('feishuHint')}</div>
+                </div>
+              </div>
+              <div class="toggle ${feishuEnabled ? 'active' : ''}" data-toggle-messenger="feishu"></div>
+            </div>
+            ${feishuEnabled ? `
+              <div class="row">
+                <div>
+                  <label>${t('appId')}</label>
+                  <input type="text" id="fsAppId" value="${fs.appId || ''}" placeholder="cli_xxx">
+                </div>
+                <div>
+                  <label>${t('appSecret')}</label>
+                  <input type="password" id="fsAppSecret" value="${fs.appSecret || ''}" placeholder="Your app secret">
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" id="saveMessengers">${t('saveMessengers')}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // ACP Remote Agents card
+    // ==========================================
+    function renderAcpCard() {
+      const agents = config.acpAgents || [];
+
+      const rows = agents.length > 0 ? agents.map((a, i) => `
+        <tr data-acp-idx="${i}">
+          <td><strong>${a.name}</strong><br><span style="font-size:11px;color:var(--text-dim)">${(a.aliases || []).join(', ')}</span></td>
+          <td style="font-family:monospace;font-size:12px">${a.endpoint}</td>
+          <td>${a.auth?.type || t('none')}</td>
+          <td><div class="toggle ${a.enabled !== false ? 'active' : ''}" data-toggle-acp="${i}"></div></td>
+          <td>
+            <button class="btn btn-sm" data-test-acp="${i}">${t('test')}</button>
+            <button class="btn btn-sm btn-danger" data-del-acp="${i}">${t('del')}</button>
+          </td>
+        </tr>
+      `).join('') : `<tr><td colspan="5" style="color:var(--text-dim);text-align:center;padding:20px">${t('acpNone')}</td></tr>`;
+
+      return `
+        <div class="card">
+          <h2>${t('acpTitle')} <span class="badge">${agents.length}</span></h2>
+
+          <table class="acp-table">
+            <thead>
+              <tr><th>${t('name')}</th><th>${t('endpoint')}</th><th>${t('auth')}</th><th>${t('enabled')}</th><th></th></tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+
+          <hr class="divider">
+          <div style="font-size:13px;font-weight:600;margin-bottom:10px">${t('addAgent')}</div>
+          <div class="row">
+            <div>
+              <label>${t('name')}</label>
+              <input type="text" id="acpName" placeholder="my-agent">
+            </div>
+            <div>
+              <label>${t('aliases')}</label>
+              <input type="text" id="acpAliases" placeholder="ma, agent1">
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>${t('endpointUrl')}</label>
+              <input type="text" id="acpEndpoint" placeholder="http://localhost:8080">
+            </div>
+            <div>
+              <label>${t('authType')}</label>
+              <select id="acpAuthType">
+                <option value="none">${t('none')}</option>
+                <option value="apikey">${t('apikey')}</option>
+                <option value="bearer">${t('bearer')}</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" id="acpTokenRow" style="display:none">
+            <div>
+              <label>${t('token')}</label>
+              <input type="password" id="acpToken" placeholder="Your auth token">
+            </div>
+            <div></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="testAcpNew">${t('testConn')}</button>
+            <button class="btn btn-primary" id="addAcp">${t('add')}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // General card
+    // ==========================================
+    function renderGeneralCard() {
+      return `
+        <div class="card">
+          <h2>${t('general')}</h2>
+          <label>${t('webPort')}</label>
+          <input type="number" id="webPort" value="${config.webPort || 3000}" min="1024" max="65535" style="max-width:200px">
+          <div class="actions">
+            <button class="btn btn-primary" id="saveGeneral">${t('save')}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // Event binding
+    // ==========================================
+    function bindEvents() {
+      // Agent toggles
+      document.querySelectorAll('[data-toggle-agent]').forEach(el => {
+        el.addEventListener('click', () => el.classList.toggle('active'));
+      });
+
+      // Messenger toggles
+      document.querySelectorAll('[data-toggle-messenger]').forEach(el => {
+        el.addEventListener('click', () => {
+          el.classList.toggle('active');
+          syncMessengerToggles();
+        });
+      });
+
+      // ACP toggles
+      document.querySelectorAll('[data-toggle-acp]').forEach(el => {
+        el.addEventListener('click', () => el.classList.toggle('active'));
+      });
+
+      // ACP delete buttons
+      document.querySelectorAll('[data-del-acp]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const idx = parseInt(btn.dataset.delAcp);
+          config.acpAgents.splice(idx, 1);
+          await saveConfig();
+          render();
+        });
+      });
+
+      // ACP test existing
+      document.querySelectorAll('[data-test-acp]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const idx = parseInt(btn.dataset.testAcp);
+          const agent = config.acpAgents[idx];
+          btn.disabled = true;
+          btn.textContent = t('testing');
+          try {
+            const res = await fetch('/api/agents/acp/test', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ endpoint: agent.endpoint, auth: agent.auth }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+              toast(`${t('connected')}: ${data.name}`, 'success');
+            } else {
+              toast(`${t('failed')}: ${data.error}`, 'error');
+            }
+          } catch (err) {
+            toast(`${t('error')}: ${err.message}`, 'error');
+          }
+          btn.disabled = false;
+          btn.textContent = t('test');
+        });
+      });
+
+      // ACP auth type toggle
+      const acpAuthType = document.getElementById('acpAuthType');
+      if (acpAuthType) {
+        acpAuthType.addEventListener('change', () => {
+          const row = document.getElementById('acpTokenRow');
+          row.style.display = acpAuthType.value === 'none' ? 'none' : 'flex';
+        });
+      }
+
+      // Save agents
+      document.getElementById('saveAgents')?.addEventListener('click', async () => {
+        const enabled = [];
+        document.querySelectorAll('[data-toggle-agent]').forEach(el => {
+          if (el.classList.contains('active')) {
+            enabled.push(el.dataset.toggleAgent);
+          }
+        });
+        const defaultAgent = document.getElementById('defaultAgent').value;
+        config.agents = enabled;
+        config.defaultAgent = defaultAgent;
+        await saveConfig();
+      });
+
+      // Save messengers
+      document.getElementById('saveMessengers')?.addEventListener('click', async () => {
+        const enabled = [];
+        document.querySelectorAll('[data-toggle-messenger]').forEach(el => {
+          if (el.classList.contains('active')) {
+            enabled.push(el.dataset.toggleMessenger);
+          }
+        });
+        config.messengers = enabled;
+
+        const tgToken = document.getElementById('tgToken');
+        const tgChannel = document.getElementById('tgChannel');
+        if (tgToken) {
+          const val = tgToken.value.trim();
+          if (val && !val.includes('****')) {
+            config.telegram = { botToken: val, channelId: tgChannel?.value.trim() || 'default' };
+          }
+        } else {
+          delete config.telegram;
+        }
+
+        const fsAppId = document.getElementById('fsAppId');
+        const fsAppSecret = document.getElementById('fsAppSecret');
+        if (fsAppId) {
+          const id = fsAppId.value.trim();
+          const secret = fsAppSecret.value.trim();
+          if (id && secret && !secret.includes('****')) {
+            config.feishu = { appId: id, appSecret: secret };
+          }
+        } else {
+          delete config.feishu;
+        }
+
+        await saveConfig();
+      });
+
+      // Test new ACP
+      document.getElementById('testAcpNew')?.addEventListener('click', async () => {
+        const endpoint = document.getElementById('acpEndpoint').value.trim();
+        if (!endpoint) { toast(t('enterEndpoint'), 'error'); return; }
+
+        const authType = document.getElementById('acpAuthType').value;
+        const token = document.getElementById('acpToken')?.value.trim();
+        const auth = authType === 'none' ? undefined : { type: authType, token };
+        const btn = document.getElementById('testAcpNew');
+        btn.disabled = true;
+        btn.textContent = t('testing');
+
+        try {
+          const res = await fetch('/api/agents/acp/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint, auth }),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            toast(`${t('connected')}: ${data.name}${data.description ? ' — ' + data.description : ''}`, 'success');
+          } else {
+            toast(`${t('failed')}: ${data.error}`, 'error');
+          }
+        } catch (err) {
+          toast(`${t('error')}: ${err.message}`, 'error');
+        }
+        btn.disabled = false;
+        btn.textContent = t('testConn');
+      });
+
+      // Add ACP
+      document.getElementById('addAcp')?.addEventListener('click', async () => {
+        const name = document.getElementById('acpName').value.trim();
+        const endpoint = document.getElementById('acpEndpoint').value.trim();
+        if (!name) { toast(t('nameRequired'), 'error'); return; }
+        if (!endpoint) { toast(t('endpointRequired'), 'error'); return; }
+
+        const aliases = document.getElementById('acpAliases').value.split(',').map(s => s.trim()).filter(Boolean);
+        const authType = document.getElementById('acpAuthType').value;
+        const token = document.getElementById('acpToken')?.value.trim();
+        const auth = authType === 'none' ? undefined : { type: authType, token };
+
+        if (!config.acpAgents) config.acpAgents = [];
+        config.acpAgents.push({ name, aliases, endpoint, auth, enabled: true });
+        await saveConfig();
+        render();
+      });
+
+      // Save general
+      document.getElementById('saveGeneral')?.addEventListener('click', async () => {
+        config.webPort = parseInt(document.getElementById('webPort').value) || 3000;
+        await saveConfig();
+      });
+    }
+
+    function syncMessengerToggles() {
+      render();
+    }
+
+    // ==========================================
+    // API helpers
+    // ==========================================
+    async function saveConfig() {
+      try {
+        const payload = {
+          messengers: config.messengers,
+          agents: config.agents,
+          defaultAgent: config.defaultAgent,
+          telegram: config.telegram,
+          feishu: config.feishu,
+          acpAgents: config.acpAgents,
+          webPort: config.webPort,
+        };
+
+        const res = await fetch('/api/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || t('saveFailed'));
+        }
+
+        toast(t('savedMsg'), 'success');
+        await init();
+      } catch (err) {
+        toast(`${t('saveFailed')}: ${err.message}`, 'error');
+      }
+    }
+
+    let toastTimer;
+    function toast(msg, type) {
+      toastEl.textContent = msg;
+      toastEl.className = `toast ${type} show`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove('show');
+      }, 3000);
+    }
+
+    // Init
+    applyLang();
+    init();
+  </script>
+</body>
+</html>
